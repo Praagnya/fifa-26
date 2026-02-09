@@ -85,9 +85,8 @@ export default function TeamPicker({ onDone, onCancel, initialSelected = [] }: P
               Cancel
             </button>
             <button
-              disabled={selected.size === 0}
               onClick={() => onDone([...selected])}
-              className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold uppercase tracking-wider font-['Oswald'] hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-default transition-all cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold uppercase tracking-wider font-['Oswald'] hover:bg-indigo-500 transition-all cursor-pointer"
             >
               Continue
             </button>

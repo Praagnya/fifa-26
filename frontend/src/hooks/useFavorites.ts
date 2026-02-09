@@ -6,7 +6,8 @@ const LS_KEY = "fifa26_favorites";
 
 function readLocal(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+    const val = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+    return Array.isArray(val) ? val : [];
   } catch {
     return [];
   }
@@ -75,6 +76,20 @@ export function useFavorites() {
     if (error) console.warn("Could not save favorites to Supabase:", error.message);
   };
 
+  const removeFavorite = async (team: string) => {
+    const next = favorites.filter((t) => t !== team);
+    setFavorites(next);
+    writeLocal(next);
+
+    if (!user) return;
+    const { error } = await supabase
+      .from("user_favorites")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("team_name", team);
+    if (error) console.warn("Could not remove favorite from Supabase:", error.message);
+  };
+
   const syncFavorites = async (teams: string[]) => {
     const previous = [...favorites];
     setFavorites(teams);
@@ -107,5 +122,5 @@ export function useFavorites() {
     }
   };
 
-  return { favorites, loaded, addFavorites, removeFavorite: syncFavorites, syncFavorites, refetch: fetchFavorites };
+  return { favorites, loaded, addFavorites, removeFavorite, syncFavorites, refetch: fetchFavorites };
 }
