@@ -25,6 +25,16 @@ function Matches() {
     if (dates.length && !selectedDate) setSelectedDate(dates[0]);
   }, [dates, selectedDate]);
 
+  // auto-scroll when selected date changes
+  useEffect(() => {
+    if (selectedDate) {
+      const el = document.getElementById(`date-${selectedDate}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+  }, [selectedDate]);
+
   const dayMatches = matches
     .filter((m) => toDateKey(m.kickoff_utc) === selectedDate)
     .sort(
@@ -52,16 +62,6 @@ function Matches() {
   }
 
 
-  
-  // auto-scroll when selected date changes
-  useEffect(() => {
-    if (selectedDate) {
-      const el = document.getElementById(`date-${selectedDate}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-      }
-    }
-  }, [selectedDate]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] font-['Inter']">
