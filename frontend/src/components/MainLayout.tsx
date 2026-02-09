@@ -4,6 +4,7 @@ import type { Match } from "../types/match";
 import { useAuth } from "../context/AuthContext";
 import { useFavorites } from "../hooks/useFavorites";
 import FavoritesSidebar from "./FavoritesSidebar";
+import ChatSidebar from "./ChatSidebar";
 import TeamPicker from "./TeamPicker";
 
 export interface LayoutContext {
@@ -20,6 +21,7 @@ export default function MainLayout() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
 
   const hasFavorites = favorites.length > 0;
@@ -65,13 +67,22 @@ export default function MainLayout() {
         />
       )}
 
+      {/* chat sidebar — always available */}
+      <ChatSidebar
+        open={chatSidebarOpen}
+        onToggle={() => setChatSidebarOpen((o) => !o)}
+      />
+
       {/* team picker overlay */}
       {showPicker && <TeamPicker onDone={handlePickerDone} />}
 
-      {/* main content area — shifts right when sidebar is open */}
+      {/* main content area — shifts when sidebars are open */}
       <div
         className="transition-all duration-300"
-        style={{ marginLeft: hasFavorites && sidebarOpen ? 320 : 0 }}
+        style={{ 
+          marginLeft: hasFavorites && sidebarOpen ? 320 : 0,
+          marginRight: chatSidebarOpen ? 384 : 0
+        }}
       >
         <Outlet context={{ matches, loading, openPicker } satisfies LayoutContext} />
       </div>
