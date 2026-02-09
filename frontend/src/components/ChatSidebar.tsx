@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
+
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -128,7 +129,7 @@ export default function ChatSidebar({ open, onToggle }: Props) {
                 Assistant
               </p>
               <p className="text-[10px] text-white/30 font-semibold tracking-[0.2em] uppercase font-['Oswald']">
-                FIFA 2026
+                FIFA 2026 Assistant
               </p>
             </div>
           </div>

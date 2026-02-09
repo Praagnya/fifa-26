@@ -15,7 +15,7 @@ export interface LayoutContext {
 
 export default function MainLayout() {
   const { user } = useAuth();
-  const { favorites, loaded: favsLoaded, addFavorites, removeFavorite } =
+  const { favorites, loaded: favsLoaded, syncFavorites, removeFavorite } =
     useFavorites();
 
   const [matches, setMatches] = useState<Match[]>([]);
@@ -50,7 +50,7 @@ export default function MainLayout() {
   const openPicker = () => setShowPicker(true);
 
   const handlePickerDone = async (teams: string[]) => {
-    await addFavorites(teams);
+    await syncFavorites(teams);
     setShowPicker(false);
   };
 
@@ -74,7 +74,7 @@ export default function MainLayout() {
       />
 
       {/* team picker overlay */}
-      {showPicker && <TeamPicker onDone={handlePickerDone} />}
+      {showPicker && <TeamPicker onDone={handlePickerDone} onCancel={() => setShowPicker(false)} initialSelected={favorites} />}
 
       {/* main content area — shifts when sidebars are open */}
       <div

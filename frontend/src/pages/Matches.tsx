@@ -4,6 +4,7 @@ import { toDateKey, formatDayLabel, formatTime, formatMonth } from "../lib/dateU
 import { useLayoutContext } from "../components/MainLayout";
 import { useAuth } from "../context/AuthContext";
 
+
 function displayName(team: string): string {
   return getFlagUrl(team) ? team : "TBD";
 }
@@ -60,10 +61,12 @@ function Matches() {
               <h1 className="text-2xl font-extrabold text-white uppercase tracking-wide font-['Oswald']">
                 2026 Schedule
               </h1>
+
             </div>
 
             {/* header actions */}
             <div className="flex items-center gap-3">
+              
               {/* pick teams button — always visible */}
               <button
                 onClick={openPicker}
@@ -150,9 +153,11 @@ function Matches() {
 
             {dates.map((d) => {
               const dt = new Date(d + "T12:00:00");
-              const dayNum = dt.getDate();
+              const dayNum = dt.toLocaleDateString('en-US', { 
+                day: 'numeric'
+              });
               const dayName = dt.toLocaleDateString("en-US", {
-                weekday: "short",
+                weekday: "short"
               });
               const isActive = d === selectedDate;
               return (
@@ -265,9 +270,9 @@ function Matches() {
                   <span className="text-lg font-extrabold text-white/15 font-['Oswald'] uppercase">
                     vs
                   </span>
-                  <span className="text-sm font-bold text-white/70 font-mono">
-                    {formatTime(match.kickoff_utc)}
-                  </span>
+                   <span className="text-sm font-bold text-white/70 font-mono">
+                     {formatTime(match.kickoff_utc)}
+                   </span>
                 </div>
 
                 {/* away */}
@@ -322,7 +327,9 @@ function Matches() {
                   </p>
                   <p className="text-xs text-white/60">
                     {formatMonth(toDateKey(match.kickoff_utc))}{" "}
-                    {new Date(match.kickoff_utc).getDate()},{" "}
+                    {new Date(match.kickoff_utc).toLocaleDateString('en-US', { 
+                      day: 'numeric'
+                    })},{" "}
                     {formatTime(match.kickoff_utc)}
                   </p>
                 </div>

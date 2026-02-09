@@ -17,10 +17,13 @@ export function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 }
 
 export function formatMonth(key: string) {
   const d = new Date(key + "T12:00:00");
-  return d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  return d.toLocaleDateString("en-US", { 
+    month: "short"
+  }).toUpperCase();
 }

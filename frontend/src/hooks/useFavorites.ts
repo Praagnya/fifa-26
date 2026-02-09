@@ -75,19 +75,37 @@ export function useFavorites() {
     if (error) console.warn("Could not save favorites to Supabase:", error.message);
   };
 
-  const removeFavorite = async (team: string) => {
-    const next = favorites.filter((t) => t !== team);
-    setFavorites(next);
-    writeLocal(next);
+  const syncFavorites = async (teams: string[]) => {
+    const previous = [...favorites];
+    setFavorites(teams);
+    writeLocal(teams);
 
     if (!user) return;
-    const { error } = await supabase
-      .from("user_favorites")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("team_name", team);
-    if (error) console.warn("Could not remove favorite from Supabase:", error.message);
+
+    // determine diff
+    const added = teams.filter((t) => !previous.includes(t));
+    const removed = previous.filter((t) => !teams.includes(t));
+
+    if (added.length > 0) {
+      const rows = added.map((team_name) => ({
+        user_id: user.id,
+        team_name,
+      }));
+      const { error } = await supabase.from("user_favorites").upsert(rows, {
+        onConflict: "user_id,team_name",
+      });
+      if (error) console.warn("Could not save favorites to Supabase:", error.message);
+    }
+
+    if (removed.length > 0) {
+      const { error } = await supabase
+        .from("user_favorites")
+        .delete()
+        .eq("user_id", user.id)
+        .in("team_name", removed);
+      if (error) console.warn("Could not remove favorites from Supabase:", error.message);
+    }
   };
 
-  return { favorites, loaded, addFavorites, removeFavorite, refetch: fetchFavorites };
+  return { favorites, loaded, addFavorites, removeFavorite: syncFavorites, syncFavorites, refetch: fetchFavorites };
 }

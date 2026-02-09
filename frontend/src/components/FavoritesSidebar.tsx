@@ -2,6 +2,7 @@ import type { Match } from "../types/match";
 import { getFlagUrl } from "../data/flags";
 import { toDateKey, formatTime, formatMonth } from "../lib/dateUtils";
 
+
 interface Props {
   open: boolean;
   onToggle: () => void;
@@ -106,7 +107,9 @@ export default function FavoritesSidebar({
                     return (
                       <div key={m.match_id} className="px-4 py-2.5">
                         <p className="text-[10px] text-white/25 font-mono mb-1">
-                          {formatMonth(dateKey)} {new Date(m.kickoff_utc).getDate()} &middot;{" "}
+                          {formatMonth(dateKey)} {new Date(m.kickoff_utc).toLocaleDateString('en-US', { 
+                            day: 'numeric'
+                          })} &middot;{" "}
                           {formatTime(m.kickoff_utc)}
                         </p>
                         <p className="text-xs text-white/60 font-medium">
