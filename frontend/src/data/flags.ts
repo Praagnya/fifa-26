@@ -51,3 +51,7 @@ export function getFlagUrl(team: string): string | null {
   if (!code) return null;
   return `https://flagcdn.com/w80/${code}.png`;
 }
+
+export function displayName(team: string): string {
+  return FLAGS[team] ? team : "TBD";
+}

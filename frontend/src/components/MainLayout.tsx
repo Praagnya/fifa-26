@@ -11,6 +11,8 @@ export interface LayoutContext {
   matches: Match[];
   loading: boolean;
   openPicker: () => void;
+  selectedMatch: Match | null;
+  setSelectedMatch: (m: Match | null) => void;
 }
 
 export default function MainLayout() {
@@ -23,6 +25,7 @@ export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   const hasFavorites = favorites.length > 0;
 
@@ -64,6 +67,7 @@ export default function MainLayout() {
           favorites={favorites}
           matches={matches}
           onRemoveFavorite={removeFavorite}
+          onSelectMatch={setSelectedMatch}
         />
       )}
 
@@ -84,7 +88,7 @@ export default function MainLayout() {
           marginRight: chatSidebarOpen ? 384 : 0
         }}
       >
-        <Outlet context={{ matches, loading, openPicker } satisfies LayoutContext} />
+        <Outlet context={{ matches, loading, openPicker, selectedMatch, setSelectedMatch } satisfies LayoutContext} />
       </div>
     </div>
   );

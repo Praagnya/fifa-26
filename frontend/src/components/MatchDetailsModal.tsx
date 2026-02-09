@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import type { Match } from "../types/match";
-import { getFlagUrl } from "../data/flags";
+import { getFlagUrl, displayName } from "../data/flags";
 
 interface Props {
   match: Match;
@@ -25,6 +25,11 @@ export default function MatchDetailsModal({ match, onClose }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!getFlagUrl(match.home_team) || !getFlagUrl(match.away_team)) {
+      setLoading(false);
+      return;
+    }
+
     const fetchH2H = async () => {
       try {
         const res = await fetch(
@@ -64,13 +69,17 @@ export default function MatchDetailsModal({ match, onClose }: Props) {
             </p>
             <div className="flex items-center justify-between gap-6">
                 <div className="flex items-center gap-3">
-                     <img src={getFlagUrl(match.home_team)!} className="w-8 h-8 object-contain" alt={match.home_team} />
-                     <span className="text-xl font-bold font-['Oswald'] uppercase text-white">{match.home_team}</span>
+                     {getFlagUrl(match.home_team) && (
+                        <img src={getFlagUrl(match.home_team)!} className="w-8 h-8 object-contain" alt={match.home_team} />
+                     )}
+                     <span className="text-xl font-bold font-['Oswald'] uppercase text-white">{displayName(match.home_team)}</span>
                 </div>
                 <span className="text-white/20 font-['Oswald'] italic text-sm">vs</span>
                 <div className="flex items-center gap-3">
-                     <span className="text-xl font-bold font-['Oswald'] uppercase text-white">{match.away_team}</span>
-                     <img src={getFlagUrl(match.away_team)!} className="w-8 h-8 object-contain" alt={match.away_team} />
+                     <span className="text-xl font-bold font-['Oswald'] uppercase text-white">{displayName(match.away_team)}</span>
+                     {getFlagUrl(match.away_team) && (
+                        <img src={getFlagUrl(match.away_team)!} className="w-8 h-8 object-contain" alt={match.away_team} />
+                     )}
                 </div>
             </div>
         </div>
@@ -162,7 +171,7 @@ export default function MatchDetailsModal({ match, onClose }: Props) {
                             <p className="text-4xl mb-4">⚽️</p>
                             <h3 className="text-lg font-bold text-white font-['Oswald'] uppercase tracking-wide">First Time Meeting</h3>
                             <p className="text-sm text-white/40 mt-2 max-w-xs mx-auto">
-                                No previous World Cup matches found between {match.home_team} and {match.away_team}.
+                                No previous World Cup matches found between {displayName(match.home_team)} and {displayName(match.away_team)}.
                             </p>
                         </div>
                     )}
@@ -178,7 +187,7 @@ export default function MatchDetailsModal({ match, onClose }: Props) {
                                 <div>
                                     <div className="flex items-center gap-2 mb-3 justify-center">
                                         <img src={getFlagUrl(match.home_team)!} className="w-4 h-4 object-contain" alt="" />
-                                        <span className="text-[10px] font-bold text-white/60 font-['Oswald'] uppercase">{match.home_team}</span>
+                                        <span className="text-[10px] font-bold text-white/60 font-['Oswald'] uppercase">{displayName(match.home_team)}</span>
                                     </div>
                                     <div className="space-y-2">
                                         {stats.team1_recent.map((m, i) => (
@@ -202,7 +211,7 @@ export default function MatchDetailsModal({ match, onClose }: Props) {
                                 <div>
                                     <div className="flex items-center gap-2 mb-3 justify-center">
                                         <img src={getFlagUrl(match.away_team)!} className="w-4 h-4 object-contain" alt="" />
-                                        <span className="text-[10px] font-bold text-white/60 font-['Oswald'] uppercase">{match.away_team}</span>
+                                        <span className="text-[10px] font-bold text-white/60 font-['Oswald'] uppercase">{displayName(match.away_team)}</span>
                                     </div>
                                     <div className="space-y-2">
                                         {stats.team2_recent.map((m, i) => (
@@ -224,6 +233,13 @@ export default function MatchDetailsModal({ match, onClose }: Props) {
                             </div>
                         </div>
                     )}
+                </div>
+            ) : (!getFlagUrl(match.home_team) || !getFlagUrl(match.away_team)) ? (
+                <div className="py-12 text-center">
+                    <p className="text-4xl mb-4">🔒</p>
+                    <p className="text-sm text-white/40 font-['Oswald'] uppercase tracking-wider">
+                        Matchup to be determined
+                    </p>
                 </div>
             ) : (
                 <div className="py-12 text-center">

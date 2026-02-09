@@ -1,23 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { getFlagUrl } from "../data/flags";
+import { getFlagUrl, displayName } from "../data/flags";
 import { toDateKey, formatDayLabel, formatTime, formatMonth } from "../lib/dateUtils";
 import { useLayoutContext } from "../components/MainLayout";
 import { useAuth } from "../context/AuthContext";
 import type { Match } from "../types/match";
 import MatchDetailsModal from "../components/MatchDetailsModal";
 
-
-function displayName(team: string): string {
-  return getFlagUrl(team) ? team : "TBD";
-}
-
 /* ── component ───────────────────────────────────────────── */
 
 function Matches() {
-  const { matches, loading, openPicker } = useLayoutContext();
+  const { matches, loading, openPicker, selectedMatch, setSelectedMatch } = useLayoutContext();
   const { user, signInWithGoogle, signOut } = useAuth();
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   const dates = useMemo(() => {
     const set = new Set(matches.map((m) => toDateKey(m.kickoff_utc)));

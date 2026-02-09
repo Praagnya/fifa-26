@@ -20,15 +20,25 @@ function writeLocal(teams: string[]) {
 export function useFavorites() {
   const { user } = useAuth();
   const [favorites, setFavorites] = useState<string[]>(readLocal);
-  const [loaded, setLoaded] = useState(false);
+  
+  // Track which user ID we have loaded data for.
+  // null means not loaded for current user (or no user logged in yet processed).
+  // "guest" could strictly mean loaded from local storage for non-authed.
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+
+  // Derived loaded state:
+  // If not logged in, we consider it loaded (from local).
+  // If logged in, we are loaded only if our tracker matches the current user ID.
+  const loaded = !user || loadedUserId === user.id;
 
   const fetchFavorites = useCallback(async () => {
     if (!user) {
       // not logged in — use whatever is in localStorage
       setFavorites(readLocal());
-      setLoaded(true);
+      setLoadedUserId(null); // Reset or use a special sentinel if needed, but !user covers the 'loaded' calc
       return;
     }
+
     const { data, error } = await supabase
       .from("user_favorites")
       .select("team_name")
@@ -43,6 +53,8 @@ export function useFavorites() {
       writeLocal(teams);
     } else {
       // Supabase returned empty — check localStorage for any saved picks
+      // BUT: If switching users, we might not want to use local storage from prev user?
+      // For now, keeping existing logic but beware leaking data between users on same device
       const local = readLocal();
       if (local.length > 0) {
         setFavorites(local);
@@ -53,7 +65,7 @@ export function useFavorites() {
         setFavorites([]);
       }
     }
-    setLoaded(true);
+    setLoadedUserId(user.id);
   }, [user]);
 
   useEffect(() => {

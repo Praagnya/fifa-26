@@ -1,5 +1,5 @@
 import type { Match } from "../types/match";
-import { getFlagUrl } from "../data/flags";
+import { getFlagUrl, displayName } from "../data/flags";
 import { toDateKey, formatTime, formatMonth } from "../lib/dateUtils";
 
 
@@ -9,6 +9,7 @@ interface Props {
   favorites: string[];
   matches: Match[];
   onRemoveFavorite: (team: string) => void;
+  onSelectMatch: (match: Match) => void;
 }
 
 export default function FavoritesSidebar({
@@ -17,6 +18,7 @@ export default function FavoritesSidebar({
   favorites,
   matches,
   onRemoveFavorite,
+  onSelectMatch,
 }: Props) {
   const favoriteMatches = (team: string) =>
     matches
@@ -84,7 +86,7 @@ export default function FavoritesSidebar({
                     )}
                   </div>
                   <span className="text-sm font-bold text-white font-['Oswald'] uppercase tracking-wide flex-1">
-                    {team}
+                    {displayName(team)}
                   </span>
                   <button
                     onClick={() => onRemoveFavorite(team)}
@@ -105,7 +107,11 @@ export default function FavoritesSidebar({
                   {upcoming.map((m) => {
                     const dateKey = toDateKey(m.kickoff_utc);
                     return (
-                      <div key={m.match_id} className="px-4 py-2.5">
+                      <div 
+                        key={m.match_id} 
+                        className="px-4 py-2.5 hover:bg-white/5 transition-colors cursor-pointer"
+                        onClick={() => onSelectMatch(m)}
+                      >
                         <p className="text-[10px] text-white/25 font-mono mb-1">
                           {formatMonth(dateKey)} {new Date(m.kickoff_utc).toLocaleDateString('en-US', { 
                             day: 'numeric'
@@ -113,7 +119,7 @@ export default function FavoritesSidebar({
                           {formatTime(m.kickoff_utc)}
                         </p>
                         <p className="text-xs text-white/60 font-medium">
-                          {m.home_team} vs {m.away_team}
+                          {displayName(m.home_team)} vs {displayName(m.away_team)}
                         </p>
                         <p className="text-[10px] text-white/20 mt-0.5">
                           {m.stadium}
