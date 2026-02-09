@@ -26,3 +26,19 @@ class Match(BaseModel):
     city: str
     host_country: str
     metadata: dict | None = None
+
+class HistoricalMatch(BaseModel):
+    id: str | None = None
+    year: int
+    match_date: str | None = None
+    stage: str
+    home_team: str
+    away_team: str
+    home_score: int
+    away_score: int
+    home_penalties: int | None = None
+    away_penalties: int | None = None
+    result: str | None = None
+    stadium: str | None = None
+    city: str | None = None
+    attendance: int | None = None

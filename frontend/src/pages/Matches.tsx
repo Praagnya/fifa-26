@@ -3,6 +3,8 @@ import { getFlagUrl } from "../data/flags";
 import { toDateKey, formatDayLabel, formatTime, formatMonth } from "../lib/dateUtils";
 import { useLayoutContext } from "../components/MainLayout";
 import { useAuth } from "../context/AuthContext";
+import type { Match } from "../types/match";
+import MatchDetailsModal from "../components/MatchDetailsModal";
 
 
 function displayName(team: string): string {
@@ -15,6 +17,7 @@ function Matches() {
   const { matches, loading, openPicker } = useLayoutContext();
   const { user, signInWithGoogle, signOut } = useAuth();
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   const dates = useMemo(() => {
     const set = new Set(matches.map((m) => toDateKey(m.kickoff_utc)));
@@ -221,7 +224,8 @@ function Matches() {
         {dayMatches.map((match) => (
           <div
             key={match.match_id}
-            className="bg-[#13131a] rounded-2xl border border-white/5 overflow-hidden hover:border-white/10 transition-all"
+            onClick={() => setSelectedMatch(match)}
+            className="bg-[#13131a] rounded-2xl border border-white/5 overflow-hidden hover:border-white/10 transition-all cursor-pointer group hover:bg-[#1a1a24]"
           >
             {/* top accent bar */}
             <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
@@ -239,9 +243,14 @@ function Matches() {
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-white/20 font-mono">
-                  Match #{match.match_id}
-                </span>
+                <div className="flex items-center gap-2">
+                     <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-indigo-400 font-bold uppercase tracking-widest font-['Oswald']">
+                        View History &rarr;
+                     </span>
+                     <span className="text-[11px] text-white/20 font-mono">
+                        Match #{match.match_id}
+                     </span>
+                </div>
               </div>
 
               {/* teams row */}
@@ -347,6 +356,14 @@ function Matches() {
           </div>
         )}
       </div>
+
+       {/* Match Details Modal */}
+      {selectedMatch && (
+        <MatchDetailsModal 
+            match={selectedMatch} 
+            onClose={() => setSelectedMatch(null)} 
+        />
+      )}
     </div>
   );
 }

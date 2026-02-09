@@ -3,6 +3,52 @@ from backend.app.db.schemas import Match, Team
 
 MATCHES = "matches"
 TEAMS = "teams"
+HISTORICAL_MATCHES = "historical_matches"
+
+
+def get_h2h_matches(team1: str, team2: str) -> list[dict]:
+    """
+    Get historical matches between two teams.
+    Handles searching for (Team A vs Team B) OR (Team B vs Team A).
+    """
+    db = get_supabase()
+    
+    # Supabase/PostgREST doesn't support complex OR logic like (A=1 AND B=2) OR (A=2 AND B=1) well in one query via JS client easily.
+    # We can do an .or_() filter on strict equality if properly formatted
+    # Filter format: "and(home_team.eq.Team1,away_team.eq.Team2),and(home_team.eq.Team2,away_team.eq.Team1)"
+    
+    query = f"and(home_team.eq.{team1},away_team.eq.{team2}),and(home_team.eq.{team2},away_team.eq.{team1})"
+    
+    rows = (
+        db.table(HISTORICAL_MATCHES)
+        .select("*")
+        .or_(query)
+        .order("year", desc=True)
+        .execute()
+        .data
+    )
+    return rows
+
+def get_recent_matches(team: str, limit: int = 10) -> list[dict]:
+    """
+    Get the most recent matches for a specific team against any opponent.
+    """
+    db = get_supabase()
+    
+    # or_ filter: separate logical expressions with commas
+    query = f"home_team.eq.{team},away_team.eq.{team}"
+    
+    rows = (
+        db.table(HISTORICAL_MATCHES)
+        .select("*")
+        .or_(query)
+        .order("year", desc=True)
+        .limit(limit)
+        .execute()
+        .data
+    )
+    return rows
+
 
 
 def get_all_matches() -> list[Match]:
