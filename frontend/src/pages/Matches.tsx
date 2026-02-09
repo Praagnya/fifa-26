@@ -25,9 +25,12 @@ function Matches() {
     if (dates.length && !selectedDate) setSelectedDate(dates[0]);
   }, [dates, selectedDate]);
 
-  const dayMatches = matches.filter(
-    (m) => toDateKey(m.kickoff_utc) === selectedDate
-  );
+  const dayMatches = matches
+    .filter((m) => toDateKey(m.kickoff_utc) === selectedDate)
+    .sort(
+      (a, b) =>
+        new Date(a.kickoff_utc).getTime() - new Date(b.kickoff_utc).getTime()
+    );
 
   const currentIdx = dates.indexOf(selectedDate);
   const goPrev = () =>
@@ -47,6 +50,18 @@ function Matches() {
       </div>
     );
   }
+
+
+  
+  // auto-scroll when selected date changes
+  useEffect(() => {
+    if (selectedDate) {
+      const el = document.getElementById(`date-${selectedDate}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+  }, [selectedDate]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] font-['Inter']">
@@ -130,75 +145,61 @@ function Matches() {
           </div>
 
           {/* date picker */}
-          <div className="flex items-center gap-1 pb-3 overflow-x-auto scrollbar-none">
+          <div className="relative group px-4 -mx-4">
+            {/* left arrow */}
             <button
               onClick={goPrev}
               disabled={currentIdx <= 0}
-              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/5 disabled:opacity-20 cursor-pointer disabled:cursor-default"
+              className={`absolute left-4 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#111118]/80 backdrop-blur-sm border border-white/10 shadow-lg text-white/60 hover:text-white hover:bg-[#111118] disabled:opacity-0 transition-all cursor-pointer ${
+                currentIdx <= 0 ? "pointer-events-none" : "opacity-0 group-hover:opacity-100"
+              }`}
             >
-              <svg
-                className="w-4 h-4 text-white/60"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
 
-            {dates.map((d) => {
-              const dt = new Date(d + "T12:00:00");
-              const dayNum = dt.toLocaleDateString('en-US', { 
-                day: 'numeric'
-              });
-              const dayName = dt.toLocaleDateString("en-US", {
-                weekday: "short"
-              });
-              const isActive = d === selectedDate;
-              return (
-                <button
-                  key={d}
-                  onClick={() => setSelectedDate(d)}
-                  className={`shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                    isActive
-                      ? "bg-white text-[#0a0a0f]"
-                      : "text-white/40 hover:bg-white/5 hover:text-white/60"
-                  }`}
-                >
-                  <span className="text-[10px] uppercase font-semibold font-['Oswald'] tracking-wider">
-                    {dayName}
-                  </span>
-                  <span
-                    className={`text-sm font-bold ${isActive ? "text-[#0a0a0f]" : ""}`}
+            {/* scroll container */}
+            <div className="flex items-center gap-1 pb-3 overflow-x-auto scrollbar-none px-4">
+              {dates.map((d) => {
+                const dt = new Date(d + "T12:00:00");
+                const dayNum = dt.toLocaleDateString('en-US', { day: 'numeric' });
+                const dayName = dt.toLocaleDateString("en-US", { weekday: "short" });
+                const isActive = d === selectedDate;
+                
+                // add refs or IDs to help with scrolling later if needed
+                return (
+                  <button
+                    key={d}
+                    id={`date-${d}`}
+                    onClick={() => setSelectedDate(d)}
+                    className={`shrink-0 flex flex-col items-center px-4 py-2 rounded-xl text-xs transition-all cursor-pointer border ${
+                      isActive
+                        ? "bg-white text-[#0a0a0f] border-white shadow-lg scale-105"
+                        : "text-white/40 border-transparent hover:bg-white/5 hover:text-white/60"
+                    }`}
                   >
-                    {dayNum}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="text-[10px] uppercase font-semibold font-['Oswald'] tracking-wider leading-none mb-1">
+                      {dayName}
+                    </span>
+                    <span className={`text-lg font-bold leading-none ${isActive ? "text-[#0a0a0f]" : ""}`}>
+                      {dayNum}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
+            {/* right arrow */}
             <button
               onClick={goNext}
               disabled={currentIdx >= dates.length - 1}
-              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/5 disabled:opacity-20 cursor-pointer disabled:cursor-default"
+              className={`absolute right-4 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#111118]/80 backdrop-blur-sm border border-white/10 shadow-lg text-white/60 hover:text-white hover:bg-[#111118] disabled:opacity-0 transition-all cursor-pointer ${
+                currentIdx >= dates.length - 1 ? "pointer-events-none" : "opacity-0 group-hover:opacity-100"
+              }`}
             >
-              <svg
-                className="w-4 h-4 text-white/60"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>

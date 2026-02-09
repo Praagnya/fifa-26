@@ -6,7 +6,7 @@ TEAMS = "teams"
 
 
 def get_all_matches() -> list[Match]:
-    rows = get_supabase().table(MATCHES).select("*").execute().data
+    rows = get_supabase().table(MATCHES).select("*").order("kickoff_utc").execute().data
     return [Match(**r) for r in rows]
 
 
@@ -28,6 +28,7 @@ def get_matches_by_team(team: str) -> list[Match]:
         db.table(MATCHES)
         .select("*")
         .or_(f"home_team.ilike.%{team}%,away_team.ilike.%{team}%")
+        .order("kickoff_utc")
         .execute()
         .data
     )
@@ -40,6 +41,7 @@ def get_matches_by_city(city: str) -> list[Match]:
         .table(MATCHES)
         .select("*")
         .ilike("city", f"%{city}%")
+        .order("kickoff_utc")
         .execute()
         .data
     )
@@ -52,6 +54,7 @@ def get_matches_by_stage(stage: str) -> list[Match]:
         .table(MATCHES)
         .select("*")
         .ilike("stage", f"%{stage}%")
+        .order("kickoff_utc")
         .execute()
         .data
     )
