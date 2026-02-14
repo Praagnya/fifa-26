@@ -9,11 +9,16 @@ import TeamPicker from "./TeamPicker";
 
 interface FlightSegment {
   from: string;
+  from_name?: string;
+  from_tz?: string;
   to: string;
+  to_name?: string;
+  to_tz?: string;
   depart: string;
   arrive: string;
   carrier: string;
   flight_number: string;
+  aircraft?: string;
 }
 
 interface Flight {
@@ -23,6 +28,7 @@ interface Flight {
   arrival: string;
   duration: string;
   stops: number;
+  aircraft?: string;
   segments: FlightSegment[];
 }
 
@@ -42,6 +48,7 @@ export interface Message {
   timestamp: Date;
   flights?: Flight[];
   match?: MatchInfo;
+  sort?: string;
 }
 
 export interface LayoutContext {
@@ -50,7 +57,6 @@ export interface LayoutContext {
   openPicker: () => void;
   selectedMatch: Match | null;
   setSelectedMatch: (m: Match | null) => void;
-  onSelectMatchForFlight: (m: Match) => void;
   onSelectMatchForFlight: (m: Match) => void;
   selectedFlightMatch: Match | null;
   focusedMatchId: string | null;
@@ -81,7 +87,7 @@ export default function MainLayout() {
     }
   }, [focusedMatchId]);
 
-  const handleFocusMatch = (id: string) => {
+  const handleFocusMatch = (id: string | null) => {
     setFocusedMatchId(id);
     // If sidebar is open on mobile/small screens, you might want to close it:
     // setSidebarOpen(false); 
@@ -99,8 +105,9 @@ export default function MainLayout() {
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [currency, setCurrency] = useState("USD");
 
-  const sendMessage = async (text: string, airline?: string, date?: string) => {
+  const sendMessage = async (text: string, airline?: string, date?: string, currencyOverride?: string) => {
      if (!text) return;
      
      // Ensure chat sidebar is open when sending a message
@@ -127,7 +134,13 @@ export default function MainLayout() {
           }
       }
 
-      const payload: Record<string, string> = { message: messagePayload, session_id: sessionId };
+      const effectiveCurrency = currencyOverride || currency;
+      const payload: Record<string, string> = {
+        message: messagePayload,
+        session_id: sessionId,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        currency: effectiveCurrency,
+      };
       if (airline) payload.airline = airline;
       if (date) payload.date = date;
       const res = await fetch("/api/v1/chat", {
@@ -143,6 +156,7 @@ export default function MainLayout() {
         timestamp: new Date(),
         flights: data.flights,
         match: data.match,
+        sort: data.sort,
       };
       setMessages((prev) => [...prev, botMsg]);
     } catch {
@@ -207,10 +221,9 @@ export default function MainLayout() {
         favorites={favorites}
         matches={matches}
         onRemoveFavorite={removeFavorite}
-        onRemoveFavorite={removeFavorite}
         onSelectMatch={setSelectedMatch}
         onFocusMatch={handleFocusMatch}
-        onFlightSearch={sendMessage}
+        onFlightSearch={(text, airline, date) => sendMessage(text, airline, date, currency)}
         searchDisabled={isTyping}
         selectedMatch={selectedFlightMatch}
       />
@@ -225,6 +238,8 @@ export default function MainLayout() {
         messages={messages}
         onSendMessage={sendMessage}
         isTyping={isTyping}
+        currency={currency}
+        onCurrencyChange={setCurrency}
       />
 
       {/* team picker overlay */}

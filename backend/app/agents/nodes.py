@@ -63,14 +63,16 @@ def orchestrator(state: AgentState) -> dict:
         if entities[key] in ("null", "None", ""):
             entities[key] = None
 
-    # Fetch match data from DB if we have entity info
+    # Fetch match data from DB if we have entity info, otherwise preserve previous
     match_data = []
     if entities.get("team") or entities.get("city") or entities.get("stage"):
         match_data = search_matches(query, entities)
+    if not match_data:
+        match_data = state.get("match_data", [])
 
     departure_city = entities.get("departure_city") or state.get("departure_city", "")
-    # Prefer the structured airline code from the API request over LLM extraction
-    preferred_airline = state.get("preferred_airline", "") or entities.get("airline") or ""
+    # Current message airline (from entities) wins over session; _resolve_airline_code handles name→IATA
+    preferred_airline = entities.get("airline") or state.get("preferred_airline", "")
 
     return {
         "intent": intent,
@@ -131,17 +133,20 @@ def scout(state: AgentState) -> dict:
 
     # Search flights via Amadeus
     preferred_airline = state.get("preferred_airline", "") or None
+    currency = state.get("currency", "USD")
     flight_results = search_flights_for_match(
         departure_city=departure_city,
         match_city=match_city,
         match_date=match_date,
         airline=preferred_airline,
+        currency=currency,
     )
 
     # Use Gemini to summarize
     scout_prompt = SCOUT_PROMPT.format(
         flight_results=json.dumps(flight_results, indent=2, default=str),
         match_data=json.dumps(match_data[:3], indent=2, default=str),
+        user_timezone=state.get("user_timezone", "UTC"),
     )
     summary = _call_llm(scout_prompt, state["query"])
 

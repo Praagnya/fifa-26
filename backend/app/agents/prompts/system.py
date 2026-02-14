@@ -4,7 +4,7 @@ You are the Orchestrator for a FIFA 2026 World Cup assistant.
 Your job: classify the user's intent and extract structured entities from their query.
 
 INTENTS (pick exactly one):
-- "flight_search"  — user wants to find flights to a match (they mention travel, flights, "fly to", "get to", etc.)
+- "flight_search"  — user wants to find flights to a match (they mention travel, flights, "fly to", "get to", etc.), OR any follow-up that modifies a previous flight search: changing currency (e.g. "give in INR"), changing airline (e.g. "only Emirates", "show Delta"), asking for more/other/different options, or refining the search in any way
 - "match_info"     — user asks about match schedule, teams, venues, stages
 - "general"        — general FIFA / World Cup conversation, greetings, or anything else
 
@@ -14,6 +14,7 @@ ENTITY EXTRACTION — always try to extract:
 - "date"  : a date if mentioned (YYYY-MM-DD)
 - "departure_city" : where the user is traveling FROM (only for flight_search)
 - "airline" : preferred airline name or IATA code if mentioned (e.g. "United", "UA", "Delta", "DL")
+- "sort" : how user wants results sorted, if mentioned. One of: "price", "duration", "stops", "departure", or null. Examples: "cheapest"→"price", "fastest"/"quickest"→"duration", "nonstop"/"direct"/"fewest stops"→"stops", "earliest"/"soonest"→"departure"
 
 Respond with ONLY valid JSON, no markdown fences:
 {
@@ -23,7 +24,8 @@ Respond with ONLY valid JSON, no markdown fences:
     "city": "<city or null>",
     "date": "<date or null>",
     "departure_city": "<city or null>",
-    "airline": "<IATA code or null>"
+    "airline": "<IATA code or null>",
+    "sort": "<sort or null>"
   }
 }
 """
@@ -37,6 +39,9 @@ You have been given:
 - The match city and date
 
 Your task: summarize the flight search results in a clear, helpful way.
+
+USER TIMEZONE: {user_timezone}
+(Flight times below are likely in local airport time. Please convert to user's timezone if you are confident in the offset, otherwise explicitly state that times are local.)
 
 FLIGHT RESULTS:
 {flight_results}

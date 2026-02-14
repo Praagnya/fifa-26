@@ -22,6 +22,8 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     airline: Optional[str] = None
     date: Optional[str] = None
+    timezone: Optional[str] = None
+    currency: Optional[str] = None
 
 
 @router.get("/matches")
@@ -117,12 +119,14 @@ async def chat(request: ChatRequest):
             "entities": {},
             "match_data": prev.get("match_data", []),
             "departure_city": prev.get("departure_city", ""),
-            "departure_date": request.date or "",
-            "preferred_airline": request.airline or "",
+            "departure_date": request.date or prev.get("departure_date", ""),
+            "preferred_airline": request.airline or prev.get("preferred_airline", ""),
             "flight_results": [],
             "result": "",
             "session_id": sid,
             "error": "",
+            "user_timezone": request.timezone or "UTC",
+            "currency": request.currency or "USD",
         })
 
         # Save session state for next turn
@@ -132,6 +136,8 @@ async def chat(request: ChatRequest):
                          + [{"role": "liaison", "content": result.get("result", "")}]),
             "match_data": result.get("match_data") or prev.get("match_data", []),
             "departure_city": result.get("departure_city") or prev.get("departure_city", ""),
+            "departure_date": result.get("departure_date") or prev.get("departure_date", ""),
+            "preferred_airline": result.get("preferred_airline") or prev.get("preferred_airline", ""),
             "entities": result.get("entities") or prev.get("entities", {}),
         }
 
@@ -145,6 +151,12 @@ async def chat(request: ChatRequest):
         match_data = result.get("match_data", [])
         if match_data:
             response["match"] = match_data[0]  # The primary match
+
+        # Pass sort preference from orchestrator entities
+        entities = result.get("entities", {})
+        sort_pref = entities.get("sort")
+        if sort_pref and sort_pref in ("price", "duration", "stops", "departure"):
+            response["sort"] = sort_pref
 
         return response
     except Exception as e:

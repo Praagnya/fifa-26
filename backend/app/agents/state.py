@@ -16,3 +16,5 @@ class AgentState(TypedDict):
     result: str                     # final response text
     session_id: str                 # conversation session id
     error: str                      # error messages if any
+    user_timezone: str              # user's local timezone (e.g. "America/New_York")
+    currency: str                   # user's preferred currency (e.g. "USD", "EUR")
