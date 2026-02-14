@@ -9,7 +9,7 @@ import MatchDetailsModal from "../components/MatchDetailsModal";
 /* ── component ───────────────────────────────────────────── */
 
 function Matches() {
-  const { matches, loading, openPicker, selectedMatch, setSelectedMatch } = useLayoutContext();
+  const { matches, loading, openPicker, selectedMatch, setSelectedMatch, onSelectMatchForFlight, selectedFlightMatch, focusedMatchId } = useLayoutContext();
   const { user, signInWithGoogle, signOut } = useAuth();
   const [selectedDate, setSelectedDate] = useState<string>("");
 
@@ -31,6 +31,29 @@ function Matches() {
       }
     }
   }, [selectedDate]);
+
+  // Handle focused match from sidebar
+  useEffect(() => {
+    if (focusedMatchId) {
+      const match = matches.find(m => String(m.match_id) === focusedMatchId);
+      if (match) {
+        // 1. Switch to the match's date
+        const dateKey = toDateKey(match.kickoff_utc);
+        if (dateKey !== selectedDate) {
+            setSelectedDate(dateKey);
+        }
+        
+        // 2. Scroll to the match card (delayed slightly to allow render)
+        setTimeout(() => {
+            const el = document.getElementById(`match-${focusedMatchId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                // Optional: Flash effect logic could go here
+            }
+        }, 100);
+      }
+    }
+  }, [focusedMatchId, matches, selectedDate]);
 
   const dayMatches = matches
     .filter((m) => toDateKey(m.kickoff_utc) === selectedDate)
@@ -58,8 +81,6 @@ function Matches() {
     );
   }
 
-
-
   return (
     <div className="min-h-screen bg-[#0a0a0f] font-['Inter']">
       {/* ── header ───────────────────────────────────────── */}
@@ -73,7 +94,6 @@ function Matches() {
               <h1 className="text-2xl font-extrabold text-white uppercase tracking-wide font-['Oswald']">
                 2026 Schedule
               </h1>
-
             </div>
 
             {/* header actions */}
@@ -164,7 +184,6 @@ function Matches() {
                 const dayName = dt.toLocaleDateString("en-US", { weekday: "short" });
                 const isActive = d === selectedDate;
                 
-                // add refs or IDs to help with scrolling later if needed
                 return (
                   <button
                     key={d}
@@ -215,132 +234,151 @@ function Matches() {
 
       {/* ── match cards ──────────────────────────────────── */}
       <div className="max-w-4xl mx-auto px-4 pb-16 space-y-5">
-        {dayMatches.map((match) => (
-          <div
-            key={match.match_id}
-            onClick={() => setSelectedMatch(match)}
-            className="bg-[#13131a] rounded-2xl border border-white/5 overflow-hidden hover:border-white/10 transition-all cursor-pointer group hover:bg-[#1a1a24]"
-          >
-            {/* top accent bar */}
-            <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+        {dayMatches.map((match) => {
+          const isSelected = selectedFlightMatch?.match_id === match.match_id;
+          const isFocused = String(match.match_id) === focusedMatchId;
+          return (
+            <div
+              key={match.match_id}
+              id={`match-${match.match_id}`}
+              onClick={() => onSelectMatchForFlight(match)}
+              className={`rounded-2xl border overflow-hidden transition-all cursor-pointer group hover:bg-[#1a1a24] duration-500 ${
+                  isSelected
+                  ? "bg-[#1a1a24] border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+                  : isFocused 
+                    ? "bg-[#1a1a24] border-indigo-500/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]" 
+                    : "bg-[#13131a] border-white/5 hover:border-white/10"
+              }`}
+            >
+              {/* top accent bar */}
+              <div className={`h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-opacity ${
+                  isSelected ? "opacity-100" : "opacity-80 group-hover:opacity-100"
+              }`} />
 
-            <div className="p-6 sm:p-8">
-              {/* stage + match info row */}
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/80 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg font-['Oswald']">
-                    {match.stage}
-                  </span>
-                  {match.group_name && (
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg font-['Oswald']">
-                      Group {match.group_name}
+              <div className="p-6 sm:p-8">
+                {/* stage + match info row */}
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-white/80 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg font-['Oswald']">
+                      {match.stage}
                     </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                     <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-indigo-400 font-bold uppercase tracking-widest font-['Oswald']">
-                        View History &rarr;
-                     </span>
-                     <span className="text-[11px] text-white/20 font-mono">
-                        Match #{match.match_id}
-                     </span>
-                </div>
-              </div>
-
-              {/* teams row */}
-              <div className="flex items-center justify-center gap-4 sm:gap-8 mb-8">
-                {/* home */}
-                <div className="flex-1 flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
-                    {getFlagUrl(match.home_team) ? (
-                      <img
-                        src={getFlagUrl(match.home_team)!}
-                        alt={match.home_team}
-                        className="w-10 sm:w-12 object-contain"
-                      />
-                    ) : (
-                      <span className="text-lg sm:text-xl font-extrabold text-white/50 font-['Oswald'] tracking-wider">
-                        TBD
+                    {match.group_name && (
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg font-['Oswald']">
+                        Group {match.group_name}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm sm:text-base font-bold text-white text-center font-['Oswald'] uppercase tracking-wide">
-                    {displayName(match.home_team)}
-                  </p>
-                </div>
-
-                {/* vs / time */}
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-lg font-extrabold text-white/15 font-['Oswald'] uppercase">
-                    vs
-                  </span>
-                   <span className="text-sm font-bold text-white/70 font-mono">
-                     {formatTime(match.kickoff_utc)}
-                   </span>
-                </div>
-
-                {/* away */}
-                <div className="flex-1 flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
-                    {getFlagUrl(match.away_team) ? (
-                      <img
-                        src={getFlagUrl(match.away_team)!}
-                        alt={match.away_team}
-                        className="w-10 sm:w-12 object-contain"
-                      />
-                    ) : (
-                      <span className="text-lg sm:text-xl font-extrabold text-white/50 font-['Oswald'] tracking-wider">
-                        TBD
+                  <div className="flex items-center gap-2">
+                      <button
+                          onClick={(e) => {
+                              e.stopPropagation(); // Prevent flight selection
+                              setSelectedMatch(match);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-indigo-400 font-bold uppercase tracking-widest font-['Oswald'] hover:text-indigo-300"
+                      >
+                          View History &rarr;
+                      </button>
+                      <span className="text-[11px] text-white/20 font-mono">
+                          Match #{match.match_id}
                       </span>
-                    )}
                   </div>
-                  <p className="text-sm sm:text-base font-bold text-white text-center font-['Oswald'] uppercase tracking-wide">
-                    {displayName(match.away_team)}
-                  </p>
                 </div>
-              </div>
 
-              {/* divider */}
-              <div className="h-px bg-white/5 mb-5" />
+                {/* teams row */}
+                <div className="flex items-center justify-center gap-4 sm:gap-8 mb-8">
+                  {/* home */}
+                  <div className="flex-1 flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                      {getFlagUrl(match.home_team) ? (
+                        <img
+                          src={getFlagUrl(match.home_team)!}
+                          alt={match.home_team}
+                          className="w-10 sm:w-12 object-contain"
+                        />
+                      ) : (
+                        <span className="text-lg sm:text-xl font-extrabold text-white/50 font-['Oswald'] tracking-wider">
+                          TBD
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm sm:text-base font-bold text-white text-center font-['Oswald'] uppercase tracking-wide">
+                      {displayName(match.home_team)}
+                    </p>
+                  </div>
 
-              {/* details grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-[10px] font-semibold text-white/20 uppercase tracking-wider mb-1 font-['Oswald']">
-                    Stadium
-                  </p>
-                  <p className="text-xs text-white/60 leading-relaxed">
-                    {match.stadium}
-                  </p>
+                  {/* vs / time */}
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-lg font-extrabold text-white/15 font-['Oswald'] uppercase">
+                      vs
+                    </span>
+                    <span className="text-sm font-bold text-white/70 font-mono">
+                      {formatTime(match.kickoff_utc)}
+                    </span>
+                  </div>
+
+                  {/* away */}
+                  <div className="flex-1 flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                      {getFlagUrl(match.away_team) ? (
+                        <img
+                          src={getFlagUrl(match.away_team)!}
+                          alt={match.away_team}
+                          className="w-10 sm:w-12 object-contain"
+                        />
+                      ) : (
+                        <span className="text-lg sm:text-xl font-extrabold text-white/50 font-['Oswald'] tracking-wider">
+                          TBD
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm sm:text-base font-bold text-white text-center font-['Oswald'] uppercase tracking-wide">
+                      {displayName(match.away_team)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-white/20 uppercase tracking-wider mb-1 font-['Oswald']">
-                    City
-                  </p>
-                  <p className="text-xs text-white/60">{match.city}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-white/20 uppercase tracking-wider mb-1 font-['Oswald']">
-                    Country
-                  </p>
-                  <p className="text-xs text-white/60">{match.host_country}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-white/20 uppercase tracking-wider mb-1 font-['Oswald']">
-                    Kickoff
-                  </p>
-                  <p className="text-xs text-white/60">
-                    {formatMonth(toDateKey(match.kickoff_utc))}{" "}
-                    {new Date(match.kickoff_utc).toLocaleDateString('en-US', { 
-                      day: 'numeric'
-                    })},{" "}
-                    {formatTime(match.kickoff_utc)}
-                  </p>
+
+                {/* divider */}
+                <div className="h-px bg-white/5 mb-5" />
+
+                {/* details grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-[10px] font-semibold text-white/20 uppercase tracking-wider mb-1 font-['Oswald']">
+                      Stadium
+                    </p>
+                    <p className="text-xs text-white/60 leading-relaxed">
+                      {match.stadium}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-white/20 uppercase tracking-wider mb-1 font-['Oswald']">
+                      City
+                    </p>
+                    <p className="text-xs text-white/60">{match.city}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-white/20 uppercase tracking-wider mb-1 font-['Oswald']">
+                      Country
+                    </p>
+                    <p className="text-xs text-white/60">{match.host_country}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-white/20 uppercase tracking-wider mb-1 font-['Oswald']">
+                      Kickoff
+                    </p>
+                    <p className="text-xs text-white/60">
+                      {formatMonth(toDateKey(match.kickoff_utc))}{" "}
+                      {new Date(match.kickoff_utc).toLocaleDateString('en-US', { 
+                        day: 'numeric'
+                      })},{" "}
+                      {formatTime(match.kickoff_utc)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {dayMatches.length === 0 && (
           <div className="bg-[#13131a] rounded-2xl border border-white/5 p-16 text-center">

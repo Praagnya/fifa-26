@@ -3,9 +3,46 @@ import { Outlet, useOutletContext } from "react-router-dom";
 import type { Match } from "../types/match";
 import { useAuth } from "../context/AuthContext";
 import { useFavorites } from "../hooks/useFavorites";
-import FavoritesSidebar from "./FavoritesSidebar";
+import LeftSidebar from "./LeftSidebar";
 import ChatSidebar from "./ChatSidebar";
 import TeamPicker from "./TeamPicker";
+
+interface FlightSegment {
+  from: string;
+  to: string;
+  depart: string;
+  arrive: string;
+  carrier: string;
+  flight_number: string;
+}
+
+interface Flight {
+  price: string;
+  airline: string;
+  departure: string;
+  arrival: string;
+  duration: string;
+  stops: number;
+  segments: FlightSegment[];
+}
+
+interface MatchInfo {
+  home_team: string;
+  away_team: string;
+  kickoff_utc: string;
+  stadium: string;
+  city: string;
+  stage: string;
+}
+
+export interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+  flights?: Flight[];
+  match?: MatchInfo;
+}
 
 export interface LayoutContext {
   matches: Match[];
@@ -13,6 +50,11 @@ export interface LayoutContext {
   openPicker: () => void;
   selectedMatch: Match | null;
   setSelectedMatch: (m: Match | null) => void;
+  onSelectMatchForFlight: (m: Match) => void;
+  onSelectMatchForFlight: (m: Match) => void;
+  selectedFlightMatch: Match | null;
+  focusedMatchId: string | null;
+  setFocusedMatchId: (id: string | null) => void;
 }
 
 export default function MainLayout() {
@@ -23,9 +65,100 @@ export default function MainLayout() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarTab, setSidebarTab] = useState<"favorites" | "flights">("favorites");
   const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
+  const [chatSidebarWidth, setChatSidebarWidth] = useState(384); // Default to w-96 (384px)
   const [showPicker, setShowPicker] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [selectedFlightMatch, setSelectedFlightMatch] = useState<Match | null>(null);
+  const [focusedMatchId, setFocusedMatchId] = useState<string | null>(null);
+
+  // Auto-clear focus after a short delay so we can re-focus same match if clicked again
+  useEffect(() => {
+    if (focusedMatchId) {
+      const t = setTimeout(() => setFocusedMatchId(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [focusedMatchId]);
+
+  const handleFocusMatch = (id: string) => {
+    setFocusedMatchId(id);
+    // If sidebar is open on mobile/small screens, you might want to close it:
+    // setSidebarOpen(false); 
+  };
+
+  // Chat State
+  const [sessionId] = useState(() => crypto.randomUUID());
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content:
+        "Hey! I'm your FIFA 2026 assistant. Ask me about matches, teams, stadiums, or anything about the World Cup.",
+      timestamp: new Date(),
+    },
+  ]);
+  const [isTyping, setIsTyping] = useState(false);
+
+  const sendMessage = async (text: string, airline?: string, date?: string) => {
+     if (!text) return;
+     
+     // Ensure chat sidebar is open when sending a message
+     if (!chatSidebarOpen) setChatSidebarOpen(true);
+
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsTyping(true);
+
+    try {
+      let messagePayload = text;
+      // If we have a selected match for flight search, append context
+      if (selectedFlightMatch) {
+          const m = selectedFlightMatch;
+          const matchContext = `\n\n[Context: User selected match: ${m.home_team} vs ${m.away_team} at ${m.city}]`;
+          // Only append if not already present (simple check)
+          if (!text.includes("User selected match")) {
+              messagePayload += matchContext;
+          }
+      }
+
+      const payload: Record<string, string> = { message: messagePayload, session_id: sessionId };
+      if (airline) payload.airline = airline;
+      if (date) payload.date = date;
+      const res = await fetch("/api/v1/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      const botMsg: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: data.reply ?? data.message ?? "Something went wrong.",
+        timestamp: new Date(),
+        flights: data.flights,
+        match: data.match,
+      };
+      setMessages((prev) => [...prev, botMsg]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "Couldn't reach the server. Please try again.",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   const hasFavorites = favorites.length > 0;
 
@@ -57,25 +190,41 @@ export default function MainLayout() {
     setShowPicker(false);
   };
 
+  const handleSelectMatchForFlight = (m: Match) => {
+    setSelectedFlightMatch(m);
+    setSidebarTab("flights");
+    setSidebarOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
-      {/* sidebar — show when user has favorites */}
-      {hasFavorites && (
-        <FavoritesSidebar
-          open={sidebarOpen}
-          onToggle={() => setSidebarOpen((o) => !o)}
-          favorites={favorites}
-          matches={matches}
-          onRemoveFavorite={removeFavorite}
-          onSelectMatch={setSelectedMatch}
-        />
-      )}
+      {/* sidebar — show when user has favorites (now LeftSidebar) */}
+      <LeftSidebar 
+        open={sidebarOpen} 
+        onToggle={() => setSidebarOpen((o) => !o)}
+        activeTab={sidebarTab}
+        onTabChange={setSidebarTab}
+        favorites={favorites}
+        matches={matches}
+        onRemoveFavorite={removeFavorite}
+        onRemoveFavorite={removeFavorite}
+        onSelectMatch={setSelectedMatch}
+        onFocusMatch={handleFocusMatch}
+        onFlightSearch={sendMessage}
+        searchDisabled={isTyping}
+        selectedMatch={selectedFlightMatch}
+      />
 
       {/* chat sidebar — always available */}
       <ChatSidebar
         open={chatSidebarOpen}
         onToggle={() => setChatSidebarOpen((o) => !o)}
         matches={matches}
+        width={chatSidebarWidth}
+        onWidthChange={setChatSidebarWidth}
+        messages={messages}
+        onSendMessage={sendMessage}
+        isTyping={isTyping}
       />
 
       {/* team picker overlay */}
@@ -85,11 +234,21 @@ export default function MainLayout() {
       <div
         className="transition-all duration-300"
         style={{ 
-          marginLeft: hasFavorites && sidebarOpen ? 320 : 0,
-          marginRight: chatSidebarOpen ? 384 : 0
+          marginLeft: sidebarOpen ? 320 : 0, // Left sidebar is 320px (w-80)
+          marginRight: chatSidebarOpen ? chatSidebarWidth : 0
         }}
       >
-        <Outlet context={{ matches, loading, openPicker, selectedMatch, setSelectedMatch } satisfies LayoutContext} />
+        <Outlet context={{ 
+            matches, 
+            loading, 
+            openPicker, 
+            selectedMatch, 
+            setSelectedMatch,
+            onSelectMatchForFlight: handleSelectMatchForFlight,
+            selectedFlightMatch,
+            focusedMatchId,
+            setFocusedMatchId: handleFocusMatch
+        } satisfies LayoutContext} />
       </div>
     </div>
   );

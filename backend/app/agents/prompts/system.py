@@ -13,6 +13,7 @@ ENTITY EXTRACTION — always try to extract:
 - "city"  : a city name if mentioned
 - "date"  : a date if mentioned (YYYY-MM-DD)
 - "departure_city" : where the user is traveling FROM (only for flight_search)
+- "airline" : preferred airline name or IATA code if mentioned (e.g. "United", "UA", "Delta", "DL")
 
 Respond with ONLY valid JSON, no markdown fences:
 {
@@ -21,7 +22,8 @@ Respond with ONLY valid JSON, no markdown fences:
     "team": "<team or null>",
     "city": "<city or null>",
     "date": "<date or null>",
-    "departure_city": "<city or null>"
+    "departure_city": "<city or null>",
+    "airline": "<IATA code or null>"
   }
 }
 """
@@ -48,6 +50,7 @@ Present the information clearly:
 3. If there are errors or no flights, explain and suggest alternatives
 
 Keep your response concise and helpful. Use plain text, not markdown tables.
+- Do NOT suggest consulting travel agents.
 """
 
 LIAISON_PROMPT = """\
@@ -73,4 +76,5 @@ RULES:
 - If there's an error, acknowledge it gracefully and offer alternatives
 - Do NOT make up match data — only use what's provided
 - Keep responses under 200 words unless the user asked for detailed info
+- Do NOT suggest consulting travel agents
 """

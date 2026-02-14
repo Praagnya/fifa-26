@@ -69,12 +69,15 @@ def orchestrator(state: AgentState) -> dict:
         match_data = search_matches(query, entities)
 
     departure_city = entities.get("departure_city") or state.get("departure_city", "")
+    # Prefer the structured airline code from the API request over LLM extraction
+    preferred_airline = state.get("preferred_airline", "") or entities.get("airline") or ""
 
     return {
         "intent": intent,
         "entities": entities,
         "match_data": match_data,
         "departure_city": departure_city or "",
+        "preferred_airline": preferred_airline or "",
         "current_agent": "orchestrator",
         "messages": [{"role": "orchestrator", "content": f"Intent: {intent}, Entities: {entities}"}],
     }
@@ -96,11 +99,16 @@ def scout(state: AgentState) -> dict:
         first_match = match_data[0]
         match_city = first_match.get("city", "")
         kickoff = first_match.get("kickoff_utc", "")
-        if kickoff:
+        if kickoff and not match_date:
             match_date = str(kickoff)[:10]  # Extract YYYY-MM-DD
 
     if not match_city:
         match_city = entities.get("city") or ""
+    
+    # Prioritize explicit departure date from UI (state)
+    if state.get("departure_date"):
+        match_date = state["departure_date"]
+    
     if not match_date:
         match_date = entities.get("date") or ""
 
@@ -122,10 +130,12 @@ def scout(state: AgentState) -> dict:
         }
 
     # Search flights via Amadeus
+    preferred_airline = state.get("preferred_airline", "") or None
     flight_results = search_flights_for_match(
         departure_city=departure_city,
         match_city=match_city,
         match_date=match_date,
+        airline=preferred_airline,
     )
 
     # Use Gemini to summarize

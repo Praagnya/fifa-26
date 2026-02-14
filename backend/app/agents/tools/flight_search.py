@@ -6,6 +6,45 @@ from openai import OpenAI
 
 _client: Client | None = None
 
+# Maps airline names (lowercase) → IATA carrier codes
+_AIRLINE_TO_IATA: dict[str, str] = {
+    "united": "UA", "american": "AA", "delta": "DL",
+    "southwest": "WN", "jetblue": "B6", "alaska": "AS",
+    "spirit": "NK", "frontier": "F9", "hawaiian": "HA",
+    "sun country": "SY", "allegiant": "G4",
+    "air canada": "AC", "westjet": "WS", "air transat": "TS", "porter": "PD",
+    "avianca": "AV", "aeromexico": "AM", "copa": "CM", "latam": "LA",
+    "aerolineas argentinas": "AR", "gol": "G3", "azul": "AD",
+    "british airways": "BA", "lufthansa": "LH", "air france": "AF",
+    "klm": "KL", "iberia": "IB", "ita airways": "AZ",
+    "swiss": "LX", "austrian": "OS", "sas": "SK", "finnair": "AY",
+    "tap portugal": "TP", "aer lingus": "EI", "virgin atlantic": "VS",
+    "turkish": "TK", "turkish airlines": "TK",
+    "emirates": "EK", "qatar": "QR", "qatar airways": "QR",
+    "etihad": "EY", "singapore": "SQ", "singapore airlines": "SQ",
+    "cathay pacific": "CX", "ana": "NH", "jal": "JL",
+    "korean air": "KE", "asiana": "OZ", "qantas": "QF",
+    "air new zealand": "NZ", "air india": "AI",
+}
+
+# Also allow the IATA codes themselves
+_IATA_CODES = set(_AIRLINE_TO_IATA.values())
+
+
+def _resolve_airline_code(raw: str | None) -> str | None:
+    """Convert an airline name or code to a valid IATA carrier code."""
+    if not raw:
+        return None
+    raw = raw.strip()
+    # Already a valid 2-letter code
+    if raw.upper() in _IATA_CODES:
+        return raw.upper()
+    # Lookup by name
+    code = _AIRLINE_TO_IATA.get(raw.lower())
+    if code:
+        return code
+    return None
+
 
 def _get_client() -> Client:
     global _client
@@ -134,6 +173,7 @@ def search_flights(
     departure_date: str,
     adults: int = 1,
     max_results: int = 5,
+    airline: str | None = None,
 ) -> list[dict]:
     """
     Search for flights using the Amadeus API.
@@ -144,13 +184,14 @@ def search_flights(
         departure_date: Date in YYYY-MM-DD format
         adults: Number of adult passengers
         max_results: Maximum number of results to return
+        airline: Optional IATA carrier code to filter results (e.g. "UA")
 
     Returns:
         List of flight offer dicts with price, airline, duration, stops info.
     """
     try:
         client = _get_client()
-        response = client.shopping.flight_offers_search.get(
+        params: dict = dict(
             originLocationCode=origin,
             destinationLocationCode=destination,
             departureDate=departure_date,
@@ -158,8 +199,21 @@ def search_flights(
             max=max_results,
             currencyCode="USD",
         )
+        resolved_airline = _resolve_airline_code(airline)
+        if resolved_airline:
+            params["includedAirlineCodes"] = resolved_airline
+        
+        response = client.shopping.flight_offers_search.get(**params)
 
         flights = []
+        
+        # FALLBACK: If specific airline search yields no results, try broader search
+        if not response.data and resolved_airline:
+            del params["includedAirlineCodes"]
+            response = client.shopping.flight_offers_search.get(**params)
+            # We could add a note to the first result or handle this in the scout node?
+            # For now, just return the broad results so the user gets *something*.
+
         for offer in response.data:
             itinerary = offer["itineraries"][0]
             segments = itinerary["segments"]
@@ -197,6 +251,7 @@ def search_flights_for_match(
     match_city: str,
     match_date: str,
     adults: int = 1,
+    airline: str | None = None,
 ) -> list[dict]:
     """
     High-level helper: search flights from a user's city to a match city.
@@ -222,4 +277,5 @@ def search_flights_for_match(
         destination=destination,
         departure_date=search_date,
         adults=adults,
+        airline=airline,
     )

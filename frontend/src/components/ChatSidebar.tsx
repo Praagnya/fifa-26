@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import type { Match } from "../types/match";
+import { AIRLINE_NAMES } from "../data/airlines";
 
 interface FlightSegment {
   from: string;
@@ -42,63 +43,11 @@ interface Props {
   open: boolean;
   onToggle: () => void;
   matches: Match[];
+  width: number;
+  onWidthChange: (w: number) => void;
 }
 
-const AIRLINE_NAMES: Record<string, string> = {
-  // US carriers
-  UA: "United",
-  AA: "American",
-  DL: "Delta",
-  WN: "Southwest",
-  B6: "JetBlue",
-  AS: "Alaska",
-  NK: "Spirit",
-  F9: "Frontier",
-  HA: "Hawaiian",
-  SY: "Sun Country",
-  G4: "Allegiant",
-  // Canadian
-  AC: "Air Canada",
-  WS: "WestJet",
-  TS: "Air Transat",
-  PD: "Porter",
-  // Latin America
-  AV: "Avianca",
-  AM: "AeroMexico",
-  CM: "Copa",
-  LA: "LATAM",
-  AR: "Aerolineas Arg.",
-  G3: "GOL",
-  AD: "Azul",
-  // European
-  BA: "British Airways",
-  LH: "Lufthansa",
-  AF: "Air France",
-  KL: "KLM",
-  IB: "Iberia",
-  AZ: "ITA Airways",
-  LX: "Swiss",
-  OS: "Austrian",
-  SK: "SAS",
-  AY: "Finnair",
-  TP: "TAP Portugal",
-  EI: "Aer Lingus",
-  VS: "Virgin Atlantic",
-  TK: "Turkish",
-  // Middle East / Asia / Oceania
-  EK: "Emirates",
-  QR: "Qatar",
-  EY: "Etihad",
-  SQ: "Singapore",
-  CX: "Cathay Pacific",
-  NH: "ANA",
-  JL: "JAL",
-  KE: "Korean Air",
-  OZ: "Asiana",
-  QF: "Qantas",
-  NZ: "Air New Zealand",
-  AI: "Air India",
-};
+
 
 function formatFlightTime(iso: string) {
   const d = new Date(iso);
@@ -118,88 +67,11 @@ function formatDuration(dur: string) {
   return dur.replace(/(\d+)h/, "$1h ").replace(/(\d+)m/, "$1m").trim();
 }
 
-function formatMatchDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
+
 
 /* ── Flight Search Form ────────────────────────────────────────── */
 
-function FlightSearchForm({
-  matches,
-  onSearch,
-  disabled,
-}: {
-  matches: Match[];
-  onSearch: (text: string) => void;
-  disabled: boolean;
-}) {
-  const [selectedMatchId, setSelectedMatchId] = useState("");
-  const [departureCity, setDepartureCity] = useState("");
 
-  const grouped = useMemo(() => {
-    const groups: Record<string, Match[]> = {};
-    for (const m of matches) {
-      const key = m.stage;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(m);
-    }
-    return groups;
-  }, [matches]);
-
-  const handleSearch = () => {
-    const match = matches.find((m) => String(m.match_id) === selectedMatchId);
-    if (!match || !departureCity.trim()) return;
-    const text = `Find flights from ${departureCity.trim()} to the ${match.home_team} vs ${match.away_team} match in ${match.city}`;
-    onSearch(text);
-  };
-
-  return (
-    <div className="space-y-2.5">
-      {/* Match dropdown */}
-      <select
-        value={selectedMatchId}
-        onChange={(e) => setSelectedMatchId(e.target.value)}
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer [&>optgroup]:bg-[#1a1a24] [&>option]:bg-[#1a1a24]"
-      >
-        <option value="">Select a match...</option>
-        {Object.entries(grouped).map(([stage, stageMatches]) => (
-          <optgroup key={stage} label={stage}>
-            {stageMatches.map((m) => (
-              <option key={m.match_id} value={String(m.match_id)}>
-                {m.home_team} vs {m.away_team} — {formatMatchDate(m.kickoff_utc)}, {m.city}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-
-      {/* Departure city + search button */}
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          value={departureCity}
-          onChange={(e) => setDepartureCity(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSearch();
-            }
-          }}
-          placeholder="Your city (e.g. Chicago)"
-          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 outline-none focus:border-indigo-500/50 transition-colors"
-        />
-        <button
-          onClick={handleSearch}
-          disabled={disabled || !selectedMatchId || !departureCity.trim()}
-          className="shrink-0 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-default text-xs font-semibold text-white transition-colors cursor-pointer"
-        >
-          Search
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ── Filter Pills ──────────────────────────────────────────────── */
 
@@ -292,6 +164,10 @@ function FlightCard({ flight }: { flight: Flight }) {
     ? `${flight.segments[0]?.from} → ${flight.segments[flight.segments.length - 1]?.to}`
     : "";
 
+  const flightNumbers = flight.segments
+    ? flight.segments.map((s) => `${s.carrier}${s.flight_number}`).join(" → ")
+    : "";
+
   return (
     <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3 hover:border-indigo-500/30 transition-colors">
       {/* Top row: airline + price */}
@@ -302,7 +178,10 @@ function FlightCard({ flight }: { flight: Flight }) {
               {flight.airline}
             </span>
           </div>
-          <span className="text-xs text-white/50">{airlineName}</span>
+          <div className="flex flex-col">
+            <span className="text-xs text-white/50">{airlineName}</span>
+            <span className="text-[10px] text-white/30 font-mono">{flightNumbers}</span>
+          </div>
         </div>
         <span className="text-sm font-bold text-green-400">{flight.price.split(" ")[0]}</span>
       </div>
@@ -464,22 +343,36 @@ function FlightResults({ flights, match }: { flights: Flight[]; match?: MatchInf
 
 /* ── Main Component ────────────────────────────────────────────── */
 
-export default function ChatSidebar({ open, onToggle, matches }: Props) {
-  const [sessionId] = useState(() => crypto.randomUUID());
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Hey! I'm your FIFA 2026 assistant. Ask me about matches, teams, stadiums, or anything about the World Cup.",
-      timestamp: new Date(),
-    },
-  ]);
+interface Props {
+  open: boolean;
+  onToggle: () => void;
+  matches: Match[];
+  width: number;
+  onWidthChange: (w: number) => void;
+  // New props for lifted state
+  messages: Message[];
+  onSendMessage: (text: string, airline?: string, date?: string) => void;
+  isTyping: boolean;
+}
+
+/* ── Main Component ────────────────────────────────────────────── */
+
+export default function ChatSidebar({ 
+  open, 
+  onToggle, 
+  matches, 
+  width, 
+  onWidthChange,
+  messages,
+  onSendMessage,
+  isTyping
+}: Props) {
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [showFlightForm, setShowFlightForm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Resizing state
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -488,56 +381,47 @@ export default function ChatSidebar({ open, onToggle, matches }: Props) {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
-
-  const sendMessage = async (text?: string) => {
-    const msg = text ?? input.trim();
-    if (!msg) return;
-
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: msg,
-      timestamp: new Date(),
+  
+  // Handle resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!isResizing) return;
+        // Calculate new width: total window width - mouse X position
+        const newWidth = window.innerWidth - e.clientX;
+        // Constrain width (min: 300px, max: 800px or 80vw)
+        const constrained = Math.max(300, Math.min(newWidth, Math.min(800, window.innerWidth - 100)));
+        onWidthChange(constrained);
     };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setIsTyping(true);
-
-    try {
-      const res = await fetch("/api/v1/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, session_id: sessionId }),
-      });
-      const data = await res.json();
-      const botMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.reply ?? data.message ?? "Something went wrong.",
-        timestamp: new Date(),
-        flights: data.flights,
-        match: data.match,
-      };
-      setMessages((prev) => [...prev, botMsg]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Couldn't reach the server. Please try again.",
-          timestamp: new Date(),
-        },
-      ]);
-    } finally {
-      setIsTyping(false);
+    
+    const handleMouseUp = () => {
+        setIsResizing(false);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto'; // Re-enable text selection
+    };
+    
+    if (isResizing) {
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none'; // Prevent text selection while dragging
     }
+    
+    return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, onWidthChange]);
+
+  const handleSendMessage = () => {
+    if (!input.trim()) return;
+    onSendMessage(input.trim());
+    setInput("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
     }
   };
 
@@ -547,7 +431,7 @@ export default function ChatSidebar({ open, onToggle, matches }: Props) {
       <button
         onClick={onToggle}
         className="fixed top-4 right-0 z-40 w-8 h-12 bg-[#1a1a24] border border-white/10 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-white/5 transition-all cursor-pointer"
-        style={{ transform: open ? "translateX(-384px)" : "translateX(0)" }}
+        style={{ transform: open ? `translateX(-${width}px)` : "translateX(0)" }}
       >
         <svg
           className="w-4 h-4 text-white/50"
@@ -566,10 +450,20 @@ export default function ChatSidebar({ open, onToggle, matches }: Props) {
 
       {/* chat panel */}
       <aside
-        className={`fixed top-0 right-0 z-30 h-full w-96 bg-[#111118] border-l border-white/5 flex flex-col transition-transform duration-300 ${
+        className={`fixed top-0 right-0 z-30 h-full bg-[#111118] border-l border-white/5 flex flex-col transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ width: width }}
       >
+        {/* Resize Handle */}
+        <div 
+            className="absolute top-0 bottom-0 left-0 w-1 cursor-col-resize hover:bg-indigo-500/50 transition-colors z-50"
+            onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+            }}
+        />
+
         {/* header */}
         <div className="p-5 pt-6 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
@@ -607,9 +501,18 @@ export default function ChatSidebar({ open, onToggle, matches }: Props) {
                 {msg.role === "assistant" && msg.flights && msg.flights.length > 0 ? (
                   <FlightResults flights={msg.flights} match={msg.match} />
                 ) : (
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {msg.content}
-                  </p>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap font-['Inter']">
+                    {msg.content.split(/(\*\*.*?\*\*)/g).map((part, i) => {
+                      if (part.startsWith("**") && part.endsWith("**")) {
+                        return (
+                          <span key={i} className="font-bold text-indigo-300 font-['Oswald'] uppercase tracking-wide text-xs">
+                            {part.slice(2, -2)}
+                          </span>
+                        );
+                      }
+                      return <span key={i}>{part}</span>;
+                    })}
+                  </div>
                 )}
 
                 <p
@@ -643,42 +546,7 @@ export default function ChatSidebar({ open, onToggle, matches }: Props) {
 
         {/* input area */}
         <div className="p-4 border-t border-white/5 shrink-0">
-          {/* Flight search form (collapsible) */}
-          {showFlightForm && (
-            <div className="mb-3 p-3 bg-white/[0.02] border border-white/10 rounded-xl">
-              <div className="flex items-center gap-1.5 mb-2.5">
-                <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                <span className="text-[11px] font-semibold text-white/50">Flight Search</span>
-              </div>
-              <FlightSearchForm
-                matches={matches}
-                onSearch={(text) => {
-                  setShowFlightForm(false);
-                  sendMessage(text);
-                }}
-                disabled={isTyping}
-              />
-            </div>
-          )}
-
           <div className="flex items-center gap-2">
-            {/* Airplane toggle button */}
-            <button
-              onClick={() => setShowFlightForm((v) => !v)}
-              className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
-                showFlightForm
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-              }`}
-              title="Flight search"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </button>
-
             {/* Text input */}
             <div className="flex-1 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus-within:border-indigo-500/50 transition-colors">
               <input
@@ -691,7 +559,7 @@ export default function ChatSidebar({ open, onToggle, matches }: Props) {
                 className="flex-1 bg-transparent text-sm text-white placeholder-white/20 outline-none font-['Inter']"
               />
               <button
-                onClick={() => sendMessage()}
+                onClick={handleSendMessage}
                 disabled={!input.trim()}
                 className="shrink-0 w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-default flex items-center justify-center transition-colors cursor-pointer"
               >

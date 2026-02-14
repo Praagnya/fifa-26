@@ -20,6 +20,8 @@ _sessions: dict[str, dict] = defaultdict(dict)
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    airline: Optional[str] = None
+    date: Optional[str] = None
 
 
 @router.get("/matches")
@@ -115,6 +117,8 @@ async def chat(request: ChatRequest):
             "entities": {},
             "match_data": prev.get("match_data", []),
             "departure_city": prev.get("departure_city", ""),
+            "departure_date": request.date or "",
+            "preferred_airline": request.airline or "",
             "flight_results": [],
             "result": "",
             "session_id": sid,

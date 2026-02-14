@@ -10,6 +10,8 @@ class AgentState(TypedDict):
     entities: dict                  # extracted: team names, city, date, etc.
     match_data: list[dict]          # matches fetched from DB
     departure_city: str             # user's origin city for flights
+    departure_date: str             # optional explicit travel date (YYYY-MM-DD)
+    preferred_airline: str          # optional IATA airline code preference
     flight_results: list[dict]      # Amadeus search results
     result: str                     # final response text
     session_id: str                 # conversation session id
