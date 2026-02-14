@@ -1,10 +1,20 @@
+import logging
+import traceback
+from collections import defaultdict
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
 
 from backend.app.db.repository import get_all_matches, get_match_by_id, get_h2h_matches, get_recent_matches
+from backend.app.agents.graph import graph
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# In-memory session store: session_id -> last graph state
+_sessions: dict[str, dict] = defaultdict(dict)
 
 
 class ChatRequest(BaseModel):
@@ -78,30 +88,64 @@ async def get_head_to_head(team1: str, team2: str):
 
 @router.post("/chat")
 async def chat(request: ChatRequest):
-    # Simple response for now - can be enhanced with multi-agent system
-    responses = [
-        "I'm here to help with FIFA 2026 information!",
-        "Great question about the World Cup!",
-        "Let me help you with that FIFA 2026 query.",
-        "I can assist with matches, teams, and stadium information.",
-    ]
+    try:
+        sid = request.session_id or "default"
+        prev = _sessions.get(sid, {})
 
-    import random
+        # Build conversation history string from previous turns
+        history_lines = []
+        for msg in prev.get("messages", [])[-10:]:  # last 10 messages
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            if role in ("user", "liaison"):
+                label = "User" if role == "user" else "Assistant"
+                history_lines.append(f"{label}: {content}")
+        history_str = "\n".join(history_lines)
 
-    response = random.choice(responses)
+        # Prepend history to the query so the orchestrator has context
+        query_with_context = request.message
+        if history_str:
+            query_with_context = f"[Conversation so far]\n{history_str}\n\n[New message]\n{request.message}"
 
-    # Add context based on common questions
-    message_lower = request.message.lower()
-    if "match" in message_lower or "game" in message_lower:
-        response = "You can check the schedule on the main page. I'll soon be able to provide specific match details!"
-    elif "team" in message_lower:
-        response = "Select your favorite teams to track their matches. I'll soon have detailed team information!"
-    elif "stadium" in message_lower or "venue" in message_lower:
-        response = "The 2026 World Cup will be hosted across multiple cities in North America. Detailed venue info coming soon!"
-    elif "visa" in message_lower or "travel" in message_lower:
-        response = "I can help with visa information for World Cup travel. This feature will be available soon!"
+        result = graph.invoke({
+            "query": query_with_context,
+            "messages": [{"role": "user", "content": request.message}],
+            "current_agent": "",
+            "intent": "",
+            "entities": {},
+            "match_data": prev.get("match_data", []),
+            "departure_city": prev.get("departure_city", ""),
+            "flight_results": [],
+            "result": "",
+            "session_id": sid,
+            "error": "",
+        })
 
-    return {"reply": response}
+        # Save session state for next turn
+        _sessions[sid] = {
+            "messages": (prev.get("messages", [])
+                         + [{"role": "user", "content": request.message}]
+                         + [{"role": "liaison", "content": result.get("result", "")}]),
+            "match_data": result.get("match_data") or prev.get("match_data", []),
+            "departure_city": result.get("departure_city") or prev.get("departure_city", ""),
+            "entities": result.get("entities") or prev.get("entities", {}),
+        }
+
+        # Build response with structured flight data when available
+        response: dict = {"reply": result.get("result", "Sorry, I couldn't process that.")}
+
+        flight_results = result.get("flight_results", [])
+        if flight_results and not any("error" in f for f in flight_results):
+            response["flights"] = flight_results
+
+        match_data = result.get("match_data", [])
+        if match_data:
+            response["match"] = match_data[0]  # The primary match
+
+        return response
+    except Exception as e:
+        logger.error(f"Chat error: {traceback.format_exc()}")
+        return {"reply": f"Something went wrong: {e}"}
 
 
 @router.post("/visa")

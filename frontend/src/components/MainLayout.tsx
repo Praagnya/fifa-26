@@ -75,6 +75,7 @@ export default function MainLayout() {
       <ChatSidebar
         open={chatSidebarOpen}
         onToggle={() => setChatSidebarOpen((o) => !o)}
+        matches={matches}
       />
 
       {/* team picker overlay */}

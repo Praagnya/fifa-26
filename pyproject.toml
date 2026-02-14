@@ -15,6 +15,9 @@ dependencies = [
     "google-genai>=1.0",
     "tavily-python>=0.5",
     "supabase>=2.0",
+    "amadeus>=9.0",
+    "langgraph>=0.2",
+    "openai>=1.0",
 ]
 
 [project.urls]
