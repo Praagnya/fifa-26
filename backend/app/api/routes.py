@@ -127,6 +127,8 @@ async def chat(request: ChatRequest):
             "error": "",
             "user_timezone": request.timezone or "UTC",
             "currency": request.currency or "USD",
+            "nonstop": prev.get("nonstop", False),
+            "max_results": prev.get("max_results", 10),
         })
 
         # Save session state for next turn
@@ -139,6 +141,8 @@ async def chat(request: ChatRequest):
             "departure_date": result.get("departure_date") or prev.get("departure_date", ""),
             "preferred_airline": result.get("preferred_airline") or prev.get("preferred_airline", ""),
             "entities": result.get("entities") or prev.get("entities", {}),
+            "nonstop": result.get("nonstop", prev.get("nonstop", False)),
+            "max_results": result.get("max_results", prev.get("max_results", 10)),
         }
 
         # Build response with structured flight data when available
@@ -152,11 +156,30 @@ async def chat(request: ChatRequest):
         if match_data:
             response["match"] = match_data[0]  # The primary match
 
-        # Pass sort preference from orchestrator entities
+        # Pass sort and currency preferences from orchestrator entities
         entities = result.get("entities", {})
         sort_pref = entities.get("sort")
-        if sort_pref and sort_pref in ("price", "duration", "stops", "departure"):
+        if sort_pref and sort_pref in ("price", "price_desc", "duration", "stops", "departure"):
             response["sort"] = sort_pref
+        currency_pref = entities.get("currency")
+        if currency_pref and currency_pref in ("USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR"):
+            response["currency"] = currency_pref
+
+        # Build refinement object for flight_refine intent (no API call needed)
+        intent = result.get("intent", "")
+        if intent == "flight_refine":
+            refinement: dict = {}
+            if sort_pref:
+                refinement["sort"] = sort_pref
+            airline_pref = entities.get("airline")
+            if airline_pref:
+                refinement["filter_airline"] = airline_pref
+            if entities.get("nonstop"):
+                refinement["filter_stops"] = "0"
+            max_results = entities.get("max_results")
+            if max_results:
+                refinement["max_results"] = int(max_results)
+            response["refinement"] = refinement
 
         return response
     except Exception as e:

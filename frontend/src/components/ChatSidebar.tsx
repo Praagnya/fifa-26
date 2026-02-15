@@ -36,6 +36,13 @@ interface MatchInfo {
   stage: string;
 }
 
+interface Refinement {
+  sort?: string;
+  filter_airline?: string;
+  filter_stops?: string;
+  max_results?: number;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -43,6 +50,8 @@ interface Message {
   timestamp: Date;
   flights?: Flight[];
   match?: MatchInfo;
+  sort?: string;
+  refinement?: Refinement;
 }
 
 interface Props {
@@ -137,107 +146,201 @@ function FlightFilterPills({
 
 /* ── Flight Card ───────────────────────────────────────────────── */
 
+function formatCardDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
+}
+
+function formatCardTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).replace(" ", "");
+}
+
+function segmentDuration(depart: string, arrive: string): string {
+  const ms = new Date(arrive).getTime() - new Date(depart).getTime();
+  const mins = Math.round(ms / 60000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h ${m}m`;
+}
+
+function connectionDuration(prevArrive: string, nextDepart: string): string {
+  const ms = new Date(nextDepart).getTime() - new Date(prevArrive).getTime();
+  const mins = Math.round(ms / 60000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h ${m}m`;
+}
+
 function FlightCard({ flight }: { flight: Flight }) {
+  const [expanded, setExpanded] = useState(false);
   const airlineName = AIRLINE_NAMES[flight.airline] || flight.airline;
-  
-  // Helper to format date like "16-Feb-2026"
-  const formatDateDetailed = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    }).replace(/ /g, "-");
-  };
-
-  // Helper for day of week "Monday"
-  const getDayOfWeek = (iso: string) => {
-    return new Date(iso).toLocaleDateString("en-US", { weekday: "long" });
-  };
-  
-  // Helper for time "01:25AM"
-  const formatTime = (iso: string) => {
-    return new Date(iso).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true
-    }).replace(" ", "");
-  };
-
   const firstSeg = flight.segments[0];
   const lastSeg = flight.segments[flight.segments.length - 1];
 
+  const stopsLabel = flight.stops === 0
+    ? "Nonstop"
+    : flight.stops === 1
+      ? `Connects in ${flight.segments[0]?.to}`
+      : `${flight.stops} stops`;
+
+  const flightNumbers = flight.segments.map((s) => s.flight_number).join(", ");
+
   return (
-    <div className="bg-[#1a1a24] border border-white/10 rounded-xl overflow-hidden hover:border-indigo-500/50 transition-colors group">
-      {/* Header: Date & Aircraft & Duration */}
-      <div className="bg-white/5 px-4 py-2 flex items-center justify-between border-b border-white/5">
-        <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">
-                {getDayOfWeek(flight.departure)}, {formatDateDetailed(flight.departure)}
-            </span>
-        </div>
-        <div className="flex items-center gap-3">
-             <span className="text-[10px] text-white/40 font-mono">
-                {flight.aircraft ? `A${flight.aircraft}` : "Aircraft"}
-             </span>
-             <span className="text-[10px] text-white/40 font-mono flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {formatDuration(flight.duration)}
-             </span>
-        </div>
-      </div>
-
-      <div className="p-4 relative">
-        {/* Timeline Line */}
-        <div className="absolute left-[88px] top-5 bottom-5 w-px bg-white/10 border-l border-dashed border-white/20"></div>
-
-        {/* Departure */}
-        <div className="flex gap-4 relative">
-            <div className="w-[60px] text-right shrink-0">
-                <div className="text-sm font-bold text-white leading-none">{formatTime(flight.departure)}</div>
-                <div className="text-[10px] font-bold text-indigo-400 mt-0.5">{firstSeg?.from_tz || "Local"}</div>
-            </div>
-            
-            {/* Dot */}
-            <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-[#1a1a24] relative z-10 mt-1 shrink-0"></div>
-            
-            <div className="flex-1 pb-6">
-                <div className="text-xs font-bold text-white leading-none">{firstSeg?.from_name || firstSeg?.from}</div>
-                <div className="text-[10px] text-white/40 mt-1 font-mono">{firstSeg?.from}</div>
-            </div>
+    <div className="bg-[#1a1a24] border border-white/10 rounded-xl overflow-hidden hover:border-indigo-500/30 transition-colors">
+      {/* ── Collapsed Summary (always visible) ── */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full text-left px-3.5 py-3 cursor-pointer"
+      >
+        {/* Connection / Nonstop badge */}
+        <div className="flex items-center justify-between mb-2">
+          <span className={`text-[10px] font-semibold ${flight.stops === 0 ? "text-green-400/80" : "text-amber-400/80"}`}>
+            {stopsLabel}
+          </span>
+          <svg
+            className={`w-3.5 h-3.5 text-white/30 transition-transform ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
 
-        {/* Arrival */}
-        <div className="flex gap-4 relative">
-             <div className="w-[60px] text-right shrink-0">
-                <div className="text-sm font-bold text-white leading-none">{formatTime(flight.arrival)}</div>
-                <div className="text-[10px] font-bold text-indigo-400 mt-0.5">{lastSeg?.to_tz || "Local"}</div>
+        {/* Route: origin → destination with times */}
+        <div className="flex items-center gap-3 mb-2.5">
+          <div className="flex-1">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xs font-bold text-white">{formatCardTime(flight.departure)}</span>
+              {firstSeg?.from_tz && <span className="text-[9px] text-indigo-400/60 font-mono">{firstSeg.from_tz}</span>}
             </div>
-            
-            {/* Dot */}
-            <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-[#1a1a24] relative z-10 mt-1 shrink-0"></div>
-            
-            <div className="flex-1">
-                <div className="text-xs font-bold text-white leading-none">{lastSeg?.to_name || lastSeg?.to}</div>
-                <div className="text-[10px] text-white/40 mt-1 font-mono">{lastSeg?.to}</div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[11px] font-semibold text-white/70">{firstSeg?.from}</span>
+              <span className="text-[9px] text-white/25 truncate">{firstSeg?.from_name || firstSeg?.from}</span>
             </div>
+          </div>
+          <div className="flex flex-col items-center shrink-0">
+            <span className="text-[9px] text-white/25 font-mono">{formatDuration(flight.duration)}</span>
+            <svg className="w-4 h-4 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </div>
+          <div className="flex-1 text-right">
+            <div className="flex items-baseline justify-end gap-1.5">
+              <span className="text-xs font-bold text-white">{formatCardTime(flight.arrival)}</span>
+              {lastSeg?.to_tz && <span className="text-[9px] text-indigo-400/60 font-mono">{lastSeg.to_tz}</span>}
+            </div>
+            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+              <span className="text-[9px] text-white/25 truncate">{lastSeg?.to_name || lastSeg?.to}</span>
+              <span className="text-[11px] font-semibold text-white/70">{lastSeg?.to}</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Footer: Price & Airline */}
-      <div className="bg-white/5 px-4 py-3 flex items-center justify-between border-t border-white/5">
-        <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-white/10 flex items-center justify-center text-[9px] font-bold text-white/70">
-                {flight.airline}
+        {/* Price + duration + airline row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded bg-white/10 flex items-center justify-center">
+              <span className="text-[8px] font-bold text-white/60">{flight.airline}</span>
             </div>
-            <span className="text-xs text-white/60 font-medium">{airlineName}</span>
-        </div>
-        <div className="text-lg font-bold text-green-400 font-['Oswald']">
+            <span className="text-[10px] text-white/40">{airlineName}</span>
+          </div>
+          <span className="text-base font-bold text-green-400 font-['Oswald']">
             {flight.price.split(" ")[0]}
+          </span>
         </div>
-      </div>
+
+        {/* Flight numbers */}
+        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+          {flight.segments.map((seg, i) => (
+            <span key={i} className="text-[9px] text-white/25 font-mono bg-white/5 px-1.5 py-0.5 rounded">
+              {AIRLINE_NAMES[seg.carrier] || seg.carrier} · {seg.aircraft || "—"} · {seg.flight_number}
+            </span>
+          ))}
+        </div>
+      </button>
+
+      {/* ── Expanded Details ── */}
+      {expanded && (
+        <div className="border-t border-white/5 px-3.5 py-3">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Flight Details</p>
+            <p className="text-[10px] text-white/30">
+              {formatCardDate(flight.departure)} · Total {formatDuration(flight.duration)}
+            </p>
+          </div>
+
+          {flight.segments.map((seg, i) => (
+            <div key={i}>
+              {/* Connection banner between segments */}
+              {i > 0 && (
+                <div className="flex items-center gap-2 my-2 py-1.5 px-2.5 bg-amber-500/5 border border-amber-500/10 rounded-lg">
+                  <svg className="w-3 h-3 text-amber-400/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p className="text-[10px] text-amber-300/80 font-semibold">
+                      Connection in {seg.from_name || seg.from} ({seg.from})
+                    </p>
+                    <p className="text-[9px] text-white/30">
+                      {connectionDuration(flight.segments[i - 1].arrive, seg.depart)} layover
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Segment timeline */}
+              <div className="relative pl-5 pb-1">
+                {/* Vertical line */}
+                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-white/10" />
+
+                {/* Departure */}
+                <div className="relative flex items-start gap-3 pb-3">
+                  <div className="absolute left-[-13px] top-1 w-2 h-2 rounded-full bg-indigo-500 z-10" />
+                  <div className="flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-bold text-white">{formatCardTime(seg.depart)}</span>
+                      <span className="text-[10px] text-white/30">{formatCardDate(seg.depart)}</span>
+                    </div>
+                    <p className="text-[10px] text-white/50 mt-0.5">{seg.from_name || seg.from} <span className="text-white/30 font-mono">({seg.from})</span></p>
+                  </div>
+                </div>
+
+                {/* Duration + carrier info */}
+                <div className="relative flex items-center gap-2 pb-3 pl-0">
+                  <div className="absolute left-[-14px] top-0 bottom-0 flex items-center">
+                    <div className="w-[3px] h-[3px] rounded-full bg-white/20" />
+                  </div>
+                  <div className="text-[9px] text-white/25 flex items-center gap-1.5 bg-white/[0.02] rounded px-2 py-1">
+                    <span>{segmentDuration(seg.depart, seg.arrive)}</span>
+                    <span className="text-white/10">·</span>
+                    <span>{AIRLINE_NAMES[seg.carrier] || seg.carrier}</span>
+                    <span className="text-white/10">·</span>
+                    <span className="font-mono">{seg.aircraft || "—"}</span>
+                    <span className="text-white/10">·</span>
+                    <span className="font-mono">{seg.flight_number}</span>
+                  </div>
+                </div>
+
+                {/* Arrival */}
+                <div className="relative flex items-start gap-3">
+                  <div className="absolute left-[-13px] top-1 w-2 h-2 rounded-full bg-indigo-500 z-10" />
+                  <div className="flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-bold text-white">{formatCardTime(seg.arrive)}</span>
+                      <span className="text-[10px] text-white/30">{formatCardDate(seg.arrive)}</span>
+                    </div>
+                    <p className="text-[10px] text-white/50 mt-0.5">{seg.to_name || seg.to} <span className="text-white/30 font-mono">({seg.to})</span></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -280,7 +383,7 @@ function MatchBanner({ match }: { match: MatchInfo }) {
 
 /* ── Filtered Flights Renderer ─────────────────────────────────── */
 
-type SortKey = "price" | "duration" | "stops" | "departure";
+type SortKey = "price" | "price_desc" | "duration" | "stops" | "departure";
 
 function parsePrice(price: string): number {
   // price is like "$249.26 USD" or "€200.00 EUR" or "₹22590.00 INR"
@@ -300,6 +403,8 @@ function sortFlights(flights: Flight[], key: SortKey): Flight[] {
     switch (key) {
       case "price":
         return parsePrice(a.price) - parsePrice(b.price);
+      case "price_desc":
+        return parsePrice(b.price) - parsePrice(a.price);
       case "duration":
         return parseDuration(a.duration) - parseDuration(b.duration);
       case "stops":
@@ -312,14 +417,33 @@ function sortFlights(flights: Flight[], key: SortKey): Flight[] {
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "price", label: "Cheapest" },
+  { key: "price_desc", label: "Most expensive" },
   { key: "duration", label: "Fastest" },
   { key: "stops", label: "Fewest stops" },
   { key: "departure", label: "Earliest" },
 ];
 
-function FlightResults({ flights, match, sortHint }: { flights: Flight[]; match?: MatchInfo; sortHint?: SortKey }) {
-  const [activeAirlines, setActiveAirlines] = useState<Set<string>>(new Set());
-  const [activeStops, setActiveStops] = useState<Set<string>>(new Set());
+function FlightResults({
+  flights,
+  match,
+  sortHint,
+  initialAirlineFilter,
+  initialStopsFilter,
+  maxResults,
+}: {
+  flights: Flight[];
+  match?: MatchInfo;
+  sortHint?: SortKey;
+  initialAirlineFilter?: string;
+  initialStopsFilter?: string;
+  maxResults?: number;
+}) {
+  const [activeAirlines, setActiveAirlines] = useState<Set<string>>(
+    initialAirlineFilter ? new Set([initialAirlineFilter]) : new Set()
+  );
+  const [activeStops, setActiveStops] = useState<Set<string>>(
+    initialStopsFilter ? new Set([initialStopsFilter]) : new Set()
+  );
   const [sortBy, setSortBy] = useState<SortKey>(sortHint || "price");
 
   // Update sort when external hint changes
@@ -354,7 +478,10 @@ function FlightResults({ flights, match, sortHint }: { flights: Flight[]; match?
     return true;
   });
 
-  const sorted = useMemo(() => sortFlights(filtered, sortBy), [filtered, sortBy]);
+  const sorted = useMemo(() => {
+    const s = sortFlights(filtered, sortBy);
+    return maxResults ? s.slice(0, maxResults) : s;
+  }, [filtered, sortBy, maxResults]);
 
   return (
     <>
@@ -367,7 +494,7 @@ function FlightResults({ flights, match, sortHint }: { flights: Flight[]; match?
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
           <span className="text-xs font-semibold text-white/60">
-            {filtered.length} of {flights.length} flights
+            {sorted.length} of {flights.length} flights
           </span>
         </div>
 
@@ -485,11 +612,12 @@ export default function ChatSidebar({
     };
   }, [isResizing, onWidthChange]);
 
-  // Derive sort hint from the latest message that has a sort preference
+  // Derive sort hint from the latest message that has a sort preference (including refinements)
   const sortHint = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
-      const s = messages[i].sort;
-      if (s && ["price", "duration", "stops", "departure"].includes(s)) {
+      const msg = messages[i];
+      const s = msg.refinement?.sort || msg.sort;
+      if (s && ["price", "price_desc", "duration", "stops", "departure"].includes(s)) {
         return s as SortKey;
       }
     }
@@ -580,7 +708,22 @@ export default function ChatSidebar({
 
         {/* messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => (
+          {messages.map((msg, msgIdx) => {
+            // For refinement messages (no flights), find the last message with flights
+            const isRefinement = msg.role === "assistant" && msg.refinement && !msg.flights;
+            let refinementFlights: Flight[] | undefined;
+            let refinementMatch: MatchInfo | undefined;
+            if (isRefinement) {
+              for (let j = msgIdx - 1; j >= 0; j--) {
+                if (messages[j].flights && messages[j].flights!.length > 0) {
+                  refinementFlights = messages[j].flights;
+                  refinementMatch = messages[j].match;
+                  break;
+                }
+              }
+            }
+
+            return (
             <div
               key={msg.id}
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
@@ -595,6 +738,20 @@ export default function ChatSidebar({
                 {/* Text content */}
                 {msg.role === "assistant" && msg.flights && msg.flights.length > 0 ? (
                   <FlightResults flights={msg.flights} match={msg.match} sortHint={sortHint} />
+                ) : isRefinement && refinementFlights ? (
+                  <>
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap font-['Inter'] mb-2">
+                      {msg.content}
+                    </div>
+                    <FlightResults
+                      flights={refinementFlights}
+                      match={refinementMatch}
+                      sortHint={(msg.refinement?.sort as SortKey) || sortHint}
+                      initialAirlineFilter={msg.refinement?.filter_airline}
+                      initialStopsFilter={msg.refinement?.filter_stops}
+                      maxResults={msg.refinement?.max_results}
+                    />
+                  </>
                 ) : (
                   <div className="text-sm leading-relaxed whitespace-pre-wrap font-['Inter']">
                     {msg.content.split(/(\*\*.*?\*\*)/g).map((part, i) => {
@@ -622,7 +779,8 @@ export default function ChatSidebar({
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           {isTyping && (
             <div className="flex justify-start">

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Match } from "../types/match";
 import { AIRLINE_NAMES } from "../data/airlines";
 
@@ -21,7 +21,7 @@ export default function FlightSearchPanel({ matches, onSearch, disabled, initial
   const [preferredAirline, setPreferredAirline] = useState("");
 
   // Update selected match when initialMatchId prop changes
-  useMemo(() => {
+  useEffect(() => {
     if (initialMatchId) {
         setSelectedMatchId(initialMatchId);
     }
@@ -46,7 +46,7 @@ export default function FlightSearchPanel({ matches, onSearch, disabled, initial
     
     let text = `Find flights from ${departureCity.trim()} to the ${match.home_team} vs ${match.away_team} match in ${match.city}`;
     if (departureDate) {
-      text += ` on ${departureDate}`;
+      text += `, departing ${departureDate}`;
     }
     if (preferredAirline) {
       const name = AIRLINE_NAMES[preferredAirline] || preferredAirline;

@@ -57,7 +57,34 @@ def _get_client() -> Client:
 
 
 # Cache resolved lookups so we don't re-call the API for the same city
-_iata_cache: dict[str, str] = {}
+# Pre-seed with FIFA 2026 host cities (Amadeus often can't resolve these)
+_iata_cache: dict[str, str] = {
+    "vancouver": "YVR",
+    "toronto": "YYZ",
+    "seattle": "SEA",
+    "inglewood": "LAX",
+    "santa clara": "SJC",
+    "houston": "IAH",
+    "kansas city": "MCI",
+    "arlington": "DFW",
+    "atlanta": "ATL",
+    "miami gardens": "MIA",
+    "miami": "MIA",
+    "philadelphia": "PHL",
+    "foxborough": "BOS",
+    "boston": "BOS",
+    "east rutherford": "EWR",
+    "new york": "JFK",
+    "mexico city": "MEX",
+    "guadalupe": "MTY",
+    "monterrey": "MTY",
+    "zapopan": "GDL",
+    "guadalajara": "GDL",
+    "los angeles": "LAX",
+    "san francisco": "SFO",
+    "dallas": "DFW",
+    "new jersey": "EWR",
+}
 
 
 def _geocode_via_llm(city: str) -> tuple[float, float] | None:
@@ -126,8 +153,84 @@ def _find_nearby_airport(city: str) -> str | None:
 
 
 
-# Cache for rich airport details: {code: {name, detailedName, tz, offset}}
-_airport_details_cache: dict[str, dict] = {}
+# Pre-populated airport details cache — avoids per-request API calls for known airports.
+# Format: {code: {name, detailedName, offset, tz, city}}
+_airport_details_cache: dict[str, dict] = {
+    # ── FIFA 2026 Host City Airports ──
+    "YVR": {"name": "VANCOUVER INTL", "detailedName": "Vancouver International", "offset": "-08:00", "tz": "PT", "city": "Vancouver"},
+    "YYZ": {"name": "LESTER B. PEARSON INTL", "detailedName": "Toronto Pearson International", "offset": "-05:00", "tz": "ET", "city": "Toronto"},
+    "SEA": {"name": "SEATTLE-TACOMA INTL", "detailedName": "Seattle-Tacoma International", "offset": "-08:00", "tz": "PT", "city": "Seattle"},
+    "LAX": {"name": "LOS ANGELES INTL", "detailedName": "Los Angeles International", "offset": "-08:00", "tz": "PT", "city": "Los Angeles"},
+    "SJC": {"name": "NORMAN Y. MINETA SAN JOSE INTL", "detailedName": "San Jose International", "offset": "-08:00", "tz": "PT", "city": "San Jose"},
+    "SFO": {"name": "SAN FRANCISCO INTL", "detailedName": "San Francisco International", "offset": "-08:00", "tz": "PT", "city": "San Francisco"},
+    "IAH": {"name": "GEORGE BUSH INTERCONTINENTAL", "detailedName": "Houston George Bush Intercontinental", "offset": "-06:00", "tz": "CT", "city": "Houston"},
+    "MCI": {"name": "KANSAS CITY INTL", "detailedName": "Kansas City International", "offset": "-06:00", "tz": "CT", "city": "Kansas City"},
+    "DFW": {"name": "DALLAS/FORT WORTH INTL", "detailedName": "Dallas/Fort Worth International", "offset": "-06:00", "tz": "CT", "city": "Dallas"},
+    "ATL": {"name": "HARTSFIELD-JACKSON ATLANTA INTL", "detailedName": "Hartsfield-Jackson Atlanta International", "offset": "-05:00", "tz": "ET", "city": "Atlanta"},
+    "MIA": {"name": "MIAMI INTL", "detailedName": "Miami International", "offset": "-05:00", "tz": "ET", "city": "Miami"},
+    "PHL": {"name": "PHILADELPHIA INTL", "detailedName": "Philadelphia International", "offset": "-05:00", "tz": "ET", "city": "Philadelphia"},
+    "BOS": {"name": "LOGAN INTL", "detailedName": "Boston Logan International", "offset": "-05:00", "tz": "ET", "city": "Boston"},
+    "EWR": {"name": "NEWARK LIBERTY INTL", "detailedName": "Newark Liberty International", "offset": "-05:00", "tz": "ET", "city": "Newark"},
+    "JFK": {"name": "JOHN F. KENNEDY INTL", "detailedName": "John F. Kennedy International", "offset": "-05:00", "tz": "ET", "city": "New York"},
+    "MEX": {"name": "BENITO JUAREZ INTL", "detailedName": "Mexico City Benito Juarez International", "offset": "-06:00", "tz": "CT", "city": "Mexico City"},
+    "MTY": {"name": "MONTERREY INTL", "detailedName": "Monterrey International", "offset": "-06:00", "tz": "CT", "city": "Monterrey"},
+    "GDL": {"name": "DON MIGUEL HIDALGO Y COSTILLA INTL", "detailedName": "Guadalajara International", "offset": "-06:00", "tz": "CT", "city": "Guadalajara"},
+    # ── Major US Hubs (common connecting airports) ──
+    "ORD": {"name": "O'HARE INTL", "detailedName": "Chicago O'Hare International", "offset": "-06:00", "tz": "CT", "city": "Chicago"},
+    "DEN": {"name": "DENVER INTL", "detailedName": "Denver International", "offset": "-07:00", "tz": "MT", "city": "Denver"},
+    "PHX": {"name": "SKY HARBOR INTL", "detailedName": "Phoenix Sky Harbor International", "offset": "-07:00", "tz": "MT", "city": "Phoenix"},
+    "MSP": {"name": "MINNEAPOLIS-ST PAUL INTL", "detailedName": "Minneapolis-St Paul International", "offset": "-06:00", "tz": "CT", "city": "Minneapolis"},
+    "DTW": {"name": "DETROIT METROPOLITAN WAYNE COUNTY", "detailedName": "Detroit Metropolitan", "offset": "-05:00", "tz": "ET", "city": "Detroit"},
+    "CLT": {"name": "CHARLOTTE DOUGLAS INTL", "detailedName": "Charlotte Douglas International", "offset": "-05:00", "tz": "ET", "city": "Charlotte"},
+    "LAS": {"name": "HARRY REID INTL", "detailedName": "Las Vegas Harry Reid International", "offset": "-08:00", "tz": "PT", "city": "Las Vegas"},
+    "MCO": {"name": "ORLANDO INTL", "detailedName": "Orlando International", "offset": "-05:00", "tz": "ET", "city": "Orlando"},
+    "FLL": {"name": "FORT LAUDERDALE-HOLLYWOOD INTL", "detailedName": "Fort Lauderdale-Hollywood International", "offset": "-05:00", "tz": "ET", "city": "Fort Lauderdale"},
+    "IAD": {"name": "WASHINGTON DULLES INTL", "detailedName": "Washington Dulles International", "offset": "-05:00", "tz": "ET", "city": "Washington"},
+    "DCA": {"name": "RONALD REAGAN WASHINGTON NATIONAL", "detailedName": "Washington Reagan National", "offset": "-05:00", "tz": "ET", "city": "Washington"},
+    "SLC": {"name": "SALT LAKE CITY INTL", "detailedName": "Salt Lake City International", "offset": "-07:00", "tz": "MT", "city": "Salt Lake City"},
+    "SAN": {"name": "SAN DIEGO INTL", "detailedName": "San Diego International", "offset": "-08:00", "tz": "PT", "city": "San Diego"},
+    "PDX": {"name": "PORTLAND INTL", "detailedName": "Portland International", "offset": "-08:00", "tz": "PT", "city": "Portland"},
+    "BWI": {"name": "BALTIMORE/WASHINGTON INTL", "detailedName": "Baltimore/Washington International", "offset": "-05:00", "tz": "ET", "city": "Baltimore"},
+    "TPA": {"name": "TAMPA INTL", "detailedName": "Tampa International", "offset": "-05:00", "tz": "ET", "city": "Tampa"},
+    "BNA": {"name": "NASHVILLE INTL", "detailedName": "Nashville International", "offset": "-06:00", "tz": "CT", "city": "Nashville"},
+    "AUS": {"name": "AUSTIN-BERGSTROM INTL", "detailedName": "Austin-Bergstrom International", "offset": "-06:00", "tz": "CT", "city": "Austin"},
+    "RDU": {"name": "RALEIGH-DURHAM INTL", "detailedName": "Raleigh-Durham International", "offset": "-05:00", "tz": "ET", "city": "Raleigh"},
+    "STL": {"name": "ST LOUIS LAMBERT INTL", "detailedName": "St Louis Lambert International", "offset": "-06:00", "tz": "CT", "city": "St Louis"},
+    "HNL": {"name": "DANIEL K. INOUYE INTL", "detailedName": "Honolulu Daniel K. Inouye International", "offset": "-10:00", "tz": "HT", "city": "Honolulu"},
+    # ── Major Canadian Hubs ──
+    "YYC": {"name": "CALGARY INTL", "detailedName": "Calgary International", "offset": "-07:00", "tz": "MT", "city": "Calgary"},
+    "YUL": {"name": "PIERRE ELLIOTT TRUDEAU INTL", "detailedName": "Montreal Trudeau International", "offset": "-05:00", "tz": "ET", "city": "Montreal"},
+    "YOW": {"name": "OTTAWA MACDONALD-CARTIER INTL", "detailedName": "Ottawa Macdonald-Cartier International", "offset": "-05:00", "tz": "ET", "city": "Ottawa"},
+    "YEG": {"name": "EDMONTON INTL", "detailedName": "Edmonton International", "offset": "-07:00", "tz": "MT", "city": "Edmonton"},
+    "YWG": {"name": "WINNIPEG JAMES ARMSTRONG RICHARDSON INTL", "detailedName": "Winnipeg International", "offset": "-06:00", "tz": "CT", "city": "Winnipeg"},
+    # ── Major International Hubs (common connections) ──
+    "LHR": {"name": "HEATHROW", "detailedName": "London Heathrow", "offset": "+00:00", "tz": "GMT/BST", "city": "London"},
+    "CDG": {"name": "CHARLES DE GAULLE", "detailedName": "Paris Charles de Gaulle", "offset": "+01:00", "tz": "CET/CEST", "city": "Paris"},
+    "FRA": {"name": "FRANKFURT INTL", "detailedName": "Frankfurt International", "offset": "+01:00", "tz": "CET/CEST", "city": "Frankfurt"},
+    "AMS": {"name": "SCHIPHOL", "detailedName": "Amsterdam Schiphol", "offset": "+01:00", "tz": "CET/CEST", "city": "Amsterdam"},
+    "MAD": {"name": "ADOLFO SUAREZ MADRID-BARAJAS", "detailedName": "Madrid Barajas", "offset": "+01:00", "tz": "CET/CEST", "city": "Madrid"},
+    "IST": {"name": "ISTANBUL AIRPORT", "detailedName": "Istanbul Airport", "offset": "+03:00", "tz": "TRT", "city": "Istanbul"},
+    "DXB": {"name": "DUBAI INTL", "detailedName": "Dubai International", "offset": "+04:00", "tz": "GST", "city": "Dubai"},
+    "DOH": {"name": "HAMAD INTL", "detailedName": "Doha Hamad International", "offset": "+03:00", "tz": "AST", "city": "Doha"},
+    "NRT": {"name": "NARITA INTL", "detailedName": "Tokyo Narita International", "offset": "+09:00", "tz": "JST", "city": "Tokyo"},
+    "HND": {"name": "HANEDA", "detailedName": "Tokyo Haneda", "offset": "+09:00", "tz": "JST", "city": "Tokyo"},
+    "ICN": {"name": "INCHEON INTL", "detailedName": "Seoul Incheon International", "offset": "+09:00", "tz": "KST", "city": "Seoul"},
+    "SIN": {"name": "CHANGI", "detailedName": "Singapore Changi", "offset": "+08:00", "tz": "SGT", "city": "Singapore"},
+    "HKG": {"name": "HONG KONG INTL", "detailedName": "Hong Kong International", "offset": "+08:00", "tz": "HKT", "city": "Hong Kong"},
+    "DEL": {"name": "INDIRA GANDHI INTL", "detailedName": "Delhi Indira Gandhi International", "offset": "+05:30", "tz": "IST", "city": "Delhi"},
+    "BOM": {"name": "CHHATRAPATI SHIVAJI MAHARAJ INTL", "detailedName": "Mumbai Chhatrapati Shivaji International", "offset": "+05:30", "tz": "IST", "city": "Mumbai"},
+    "GRU": {"name": "GUARULHOS INTL", "detailedName": "Sao Paulo Guarulhos International", "offset": "-03:00", "tz": "BRT", "city": "Sao Paulo"},
+    "BOG": {"name": "EL DORADO INTL", "detailedName": "Bogota El Dorado International", "offset": "-05:00", "tz": "COT", "city": "Bogota"},
+    "PTY": {"name": "TOCUMEN INTL", "detailedName": "Panama City Tocumen International", "offset": "-05:00", "tz": "EST", "city": "Panama City"},
+    "CUN": {"name": "CANCUN INTL", "detailedName": "Cancun International", "offset": "-05:00", "tz": "EST", "city": "Cancun"},
+    "LIM": {"name": "JORGE CHAVEZ INTL", "detailedName": "Lima Jorge Chavez International", "offset": "-05:00", "tz": "PET", "city": "Lima"},
+    "SCL": {"name": "ARTURO MERINO BENITEZ INTL", "detailedName": "Santiago International", "offset": "-04:00", "tz": "CLT", "city": "Santiago"},
+    "EZE": {"name": "MINISTRO PISTARINI INTL", "detailedName": "Buenos Aires Ezeiza International", "offset": "-03:00", "tz": "ART", "city": "Buenos Aires"},
+    "SYD": {"name": "KINGSFORD SMITH", "detailedName": "Sydney Kingsford Smith", "offset": "+11:00", "tz": "AEDT", "city": "Sydney"},
+    "AKL": {"name": "AUCKLAND INTL", "detailedName": "Auckland International", "offset": "+13:00", "tz": "NZDT", "city": "Auckland"},
+    "JNB": {"name": "O.R. TAMBO INTL", "detailedName": "Johannesburg O.R. Tambo International", "offset": "+02:00", "tz": "SAST", "city": "Johannesburg"},
+    "ADD": {"name": "BOLE INTL", "detailedName": "Addis Ababa Bole International", "offset": "+03:00", "tz": "EAT", "city": "Addis Ababa"},
+}
 
 def _get_timezone_label(offset: str, country: str) -> str:
     """Best-effort mapping of offset+country to timezone code."""
@@ -263,9 +366,10 @@ def search_flights(
     destination: str,
     departure_date: str,
     adults: int = 1,
-    max_results: int = 5,
+    max_results: int = 10,
     airline: str | None = None,
     currency: str = "USD",
+    nonstop: bool = False,
 ) -> list[dict]:
     """
     Search for flights using the Amadeus API.
@@ -278,19 +382,23 @@ def search_flights(
         max_results: Maximum number of results to return
         airline: Optional IATA carrier code to filter results (e.g. "UA")
         currency: Currency code for pricing (e.g. "USD", "EUR")
+        nonstop: If True, only return nonstop/direct flights
 
     Returns:
         List of flight offer dicts with price, airline, duration, stops info.
     """
     try:
         client = _get_client()
+        # Overfetch to allow filtering out wrong airports, then trim to max_results
+        fetch_count = max_results * 2
         params: dict = dict(
             originLocationCode=origin,
             destinationLocationCode=destination,
             departureDate=departure_date,
             adults=adults,
-            max=max_results,
+            max=fetch_count,
             currencyCode=currency,
+            nonStop="true" if nonstop else "false",
         )
         resolved_airline = _resolve_airline_code(airline)
         if resolved_airline:
@@ -298,42 +406,21 @@ def search_flights(
         
         response = client.shopping.flight_offers_search.get(**params)
 
-        # Collect all unique airport codes to fetch details
-        iata_codes = set()
-        if response.data:
-            for offer in response.data:
-                for segment in offer["itineraries"][0]["segments"]:
-                    iata_codes.add(segment["departure"]["iataCode"])
-                    iata_codes.add(segment["arrival"]["iataCode"])
-        
-        # Fetch details for all codes
-        airport_details = {}  # {code: {name, tz, city, country}}
-        if iata_codes:
-            try:
-                # Amadeus allows fetching multiple by comma-separated id? 
-                # No, keywords. But 'reference-data/locations' can take a list? 
-                # Actually, filtering by id is safest if we had IDs, but we have IATA codes.
-                # We can try to loop or just use a helper if batching isn't easy.
-                # For MVP, we will fetch one by one or finding a batch endpoint.
-                # 'locations' endpoint supports subType=AIRPORT and keyword.
-                # To avoid N+1 slow calls, we might skip this if too many results, 
-                # but let's try to fetch for the Origin and Destination at least.
-                # Actually, let's just fetch the Origin and Destination (from params) 
-                # and maybe the segments if few.
-                
-                # Optimisation: fetch just Origin and Destination first.
-                # Iterate and fetch individually but cache in _iata_cache 
-                # or a new _airport_details_cache.
-                pass
-            except Exception:
-                pass
+        # First pass: filter to only exact airport matches
+        valid_offers = []
+        for offer in response.data:
+            segments = offer["itineraries"][0]["segments"]
+            if segments[0]["departure"]["iataCode"] != origin:
+                continue
+            if segments[-1]["arrival"]["iataCode"] != destination:
+                continue
+            valid_offers.append(offer)
+            if len(valid_offers) >= max_results:
+                break
 
         flights = []
-        
-        # Helper to get airport info (cached)
-        # We'll implement a simple inline fetcher or use a cache
-        
-        for offer in response.data:
+
+        for offer in valid_offers:
             itinerary = offer["itineraries"][0]
             segments = itinerary["segments"]
 
@@ -401,6 +488,8 @@ def search_flights_for_match(
     adults: int = 1,
     airline: str | None = None,
     currency: str = "USD",
+    nonstop: bool = False,
+    max_results: int = 10,
 ) -> list[dict]:
     """
     High-level helper: search flights from a user's city to a match city.
@@ -428,4 +517,6 @@ def search_flights_for_match(
         adults=adults,
         airline=airline,
         currency=currency,
+        nonstop=nonstop,
+        max_results=max_results,
     )

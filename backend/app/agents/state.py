@@ -18,3 +18,5 @@ class AgentState(TypedDict):
     error: str                      # error messages if any
     user_timezone: str              # user's local timezone (e.g. "America/New_York")
     currency: str                   # user's preferred currency (e.g. "USD", "EUR")
+    nonstop: bool                   # user wants nonstop/direct flights only
+    max_results: int                # how many flights to return (default 10)

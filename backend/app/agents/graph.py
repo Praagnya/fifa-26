@@ -9,6 +9,7 @@ def _route_after_orchestrator(state: AgentState) -> str:
     intent = state.get("intent", "general")
     if intent == "flight_search":
         return "scout"
+    # flight_refine skips scout (no API call) — goes straight to liaison
     return "liaison"
 
 

@@ -73,6 +73,16 @@ def orchestrator(state: AgentState) -> dict:
     departure_city = entities.get("departure_city") or state.get("departure_city", "")
     # Current message airline (from entities) wins over session; _resolve_airline_code handles name→IATA
     preferred_airline = entities.get("airline") or state.get("preferred_airline", "")
+    # Current message currency wins over session/request default
+    currency = entities.get("currency") or state.get("currency", "USD")
+    # Nonstop preference: true if user asks for it, otherwise preserve session state
+    nonstop = bool(entities.get("nonstop")) or state.get("nonstop", False)
+    # Max results: use entity if provided, otherwise preserve session state
+    max_results = entities.get("max_results") or state.get("max_results", 10)
+    if isinstance(max_results, str) and max_results.isdigit():
+        max_results = int(max_results)
+    if not isinstance(max_results, int) or max_results < 1:
+        max_results = 10
 
     return {
         "intent": intent,
@@ -80,6 +90,9 @@ def orchestrator(state: AgentState) -> dict:
         "match_data": match_data,
         "departure_city": departure_city or "",
         "preferred_airline": preferred_airline or "",
+        "currency": currency,
+        "nonstop": nonstop,
+        "max_results": max_results,
         "current_agent": "orchestrator",
         "messages": [{"role": "orchestrator", "content": f"Intent: {intent}, Entities: {entities}"}],
     }
@@ -134,12 +147,16 @@ def scout(state: AgentState) -> dict:
     # Search flights via Amadeus
     preferred_airline = state.get("preferred_airline", "") or None
     currency = state.get("currency", "USD")
+    nonstop = state.get("nonstop", False)
+    max_results = state.get("max_results", 10)
     flight_results = search_flights_for_match(
         departure_city=departure_city,
         match_city=match_city,
         match_date=match_date,
         airline=preferred_airline,
         currency=currency,
+        nonstop=nonstop,
+        max_results=max_results,
     )
 
     # Use Gemini to summarize

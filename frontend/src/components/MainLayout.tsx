@@ -41,6 +41,13 @@ interface MatchInfo {
   stage: string;
 }
 
+export interface Refinement {
+  sort?: string;
+  filter_airline?: string;
+  filter_stops?: string;
+  max_results?: number;
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant";
@@ -49,6 +56,7 @@ export interface Message {
   flights?: Flight[];
   match?: MatchInfo;
   sort?: string;
+  refinement?: Refinement;
 }
 
 export interface LayoutContext {
@@ -157,7 +165,12 @@ export default function MainLayout() {
         flights: data.flights,
         match: data.match,
         sort: data.sort,
+        refinement: data.refinement,
       };
+      // Auto-update currency dropdown if the LLM extracted a currency preference
+      if (data.currency) {
+        setCurrency(data.currency);
+      }
       setMessages((prev) => [...prev, botMsg]);
     } catch {
       setMessages((prev) => [
