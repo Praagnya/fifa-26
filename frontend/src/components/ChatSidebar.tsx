@@ -551,6 +551,8 @@ interface Props {
   isTyping: boolean;
   currency: string;
   onCurrencyChange: (c: string) => void;
+  isAuthenticated: boolean;
+  onAuthRequired: () => void;
 }
 
 export const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR"];
@@ -566,6 +568,8 @@ export default function ChatSidebar({
   isTyping,
   currency,
   onCurrencyChange,
+  isAuthenticated,
+  onAuthRequired,
 }: Props) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -645,19 +649,35 @@ export default function ChatSidebar({
         className="fixed top-4 right-0 z-40 w-8 h-12 bg-[#1a1a24] border border-white/10 border-r-0 rounded-l-lg flex items-center justify-center hover:bg-white/5 transition-all cursor-pointer"
         style={{ transform: open ? `translateX(-${width}px)` : "translateX(0)" }}
       >
-        <svg
-          className="w-4 h-4 text-white/50"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d={open ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"}
-          />
-        </svg>
+        {!isAuthenticated && !open ? (
+          <svg
+            className="w-4 h-4 text-white/50"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
+          </svg>
+        ) : (
+          <svg
+            className="w-4 h-4 text-white/50"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d={open ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"}
+            />
+          </svg>
+        )}
       </button>
 
       {/* chat panel */}
@@ -706,8 +726,31 @@ export default function ChatSidebar({
           </select>
         </div>
 
+        {/* sign-in gate */}
+        {!isAuthenticated && (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+              <svg className="w-7 h-7 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <p className="text-sm font-bold text-white/70 font-['Oswald'] uppercase tracking-wide mb-1">
+              Sign in to use the assistant
+            </p>
+            <p className="text-xs text-white/30 mb-5 max-w-[220px]">
+              Create an account or sign in to chat with the FIFA 2026 Assistant.
+            </p>
+            <button
+              onClick={onAuthRequired}
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-bold text-white font-['Oswald'] uppercase tracking-wider transition-colors cursor-pointer"
+            >
+              Sign In
+            </button>
+          </div>
+        )}
+
         {/* messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {isAuthenticated && <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg, msgIdx) => {
             // For refinement messages (no flights), find the last message with flights
             const isRefinement = msg.role === "assistant" && msg.refinement && !msg.flights;
@@ -795,10 +838,10 @@ export default function ChatSidebar({
           )}
 
           <div ref={bottomRef} />
-        </div>
+        </div>}
 
         {/* input area */}
-        <div className="p-4 border-t border-white/5 shrink-0">
+        {isAuthenticated && <div className="p-4 border-t border-white/5 shrink-0">
           <div className="flex items-center gap-2">
             {/* Text input */}
             <div className="flex-1 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus-within:border-indigo-500/50 transition-colors">
@@ -822,7 +865,7 @@ export default function ChatSidebar({
               </button>
             </div>
           </div>
-        </div>
+        </div>}
       </aside>
     </>
   );

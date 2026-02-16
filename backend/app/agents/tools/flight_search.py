@@ -1,10 +1,18 @@
 import json
+import logging
 import os
+import time
 from datetime import datetime
 from amadeus import Client, ResponseError
 from openai import OpenAI
 
+logger = logging.getLogger(__name__)
+
 _client: Client | None = None
+
+# Flight search results cache: key → (timestamp, results)
+FLIGHT_CACHE_TTL = 7200  # 2 hours
+_flight_cache: dict[str, tuple[float, list[dict]]] = {}
 
 # Maps airline names (lowercase) → IATA carrier codes
 _AIRLINE_TO_IATA: dict[str, str] = {
@@ -387,6 +395,14 @@ def search_flights(
     Returns:
         List of flight offer dicts with price, airline, duration, stops info.
     """
+    # Check flight cache
+    cache_key = f"{origin}:{destination}:{departure_date}:{currency}:{nonstop}:{airline or 'any'}"
+    cached = _flight_cache.get(cache_key)
+    if cached and (time.time() - cached[0]) < FLIGHT_CACHE_TTL:
+        logger.info("Cache HIT for key: %s", cache_key)
+        return cached[1][:max_results]
+    logger.info("Cache MISS for key: %s", cache_key)
+
     try:
         client = _get_client()
         # Overfetch to allow filtering out wrong airports, then trim to max_results
@@ -472,6 +488,9 @@ def search_flights(
                 "aircraft": aircraft_code,
                 "segments": enriched_segments,
             })
+
+        if flights:
+            _flight_cache[cache_key] = (time.time(), flights)
 
         return flights
 

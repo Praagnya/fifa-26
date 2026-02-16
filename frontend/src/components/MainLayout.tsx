@@ -6,6 +6,7 @@ import { useFavorites } from "../hooks/useFavorites";
 import LeftSidebar from "./LeftSidebar";
 import ChatSidebar from "./ChatSidebar";
 import TeamPicker from "./TeamPicker";
+import AuthModal from "./AuthModal";
 
 interface FlightSegment {
   from: string;
@@ -69,6 +70,7 @@ export interface LayoutContext {
   selectedFlightMatch: Match | null;
   focusedMatchId: string | null;
   setFocusedMatchId: (id: string | null) => void;
+  openAuthModal: () => void;
 }
 
 export default function MainLayout() {
@@ -86,6 +88,7 @@ export default function MainLayout() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [selectedFlightMatch, setSelectedFlightMatch] = useState<Match | null>(null);
   const [focusedMatchId, setFocusedMatchId] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Auto-clear focus after a short delay so we can re-focus same match if clicked again
   useEffect(() => {
@@ -115,9 +118,14 @@ export default function MainLayout() {
   const [isTyping, setIsTyping] = useState(false);
   const [currency, setCurrency] = useState("USD");
 
+  const handleChatToggle = () => {
+    setChatSidebarOpen((o) => !o);
+  };
+
   const sendMessage = async (text: string, airline?: string, date?: string, currencyOverride?: string) => {
      if (!text) return;
-     
+     if (!user) return;
+
      // Ensure chat sidebar is open when sending a message
      if (!chatSidebarOpen) setChatSidebarOpen(true);
 
@@ -241,10 +249,10 @@ export default function MainLayout() {
         selectedMatch={selectedFlightMatch}
       />
 
-      {/* chat sidebar — always available */}
+      {/* chat sidebar — gated behind auth */}
       <ChatSidebar
         open={chatSidebarOpen}
-        onToggle={() => setChatSidebarOpen((o) => !o)}
+        onToggle={handleChatToggle}
         matches={matches}
         width={chatSidebarWidth}
         onWidthChange={setChatSidebarWidth}
@@ -253,7 +261,12 @@ export default function MainLayout() {
         isTyping={isTyping}
         currency={currency}
         onCurrencyChange={setCurrency}
+        isAuthenticated={!!user}
+        onAuthRequired={() => setShowAuthModal(true)}
       />
+
+      {/* auth modal */}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
 
       {/* team picker overlay */}
       {showPicker && <TeamPicker onDone={handlePickerDone} onCancel={() => setShowPicker(false)} initialSelected={favorites} />}
@@ -266,16 +279,17 @@ export default function MainLayout() {
           marginRight: chatSidebarOpen ? chatSidebarWidth : 0
         }}
       >
-        <Outlet context={{ 
-            matches, 
-            loading, 
-            openPicker, 
-            selectedMatch, 
+        <Outlet context={{
+            matches,
+            loading,
+            openPicker,
+            selectedMatch,
             setSelectedMatch,
             onSelectMatchForFlight: handleSelectMatchForFlight,
             selectedFlightMatch,
             focusedMatchId,
-            setFocusedMatchId: handleFocusMatch
+            setFocusedMatchId: handleFocusMatch,
+            openAuthModal: () => setShowAuthModal(true),
         } satisfies LayoutContext} />
       </div>
     </div>
