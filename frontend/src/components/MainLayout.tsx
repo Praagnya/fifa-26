@@ -34,6 +34,20 @@ interface Flight {
   segments: FlightSegment[];
 }
 
+interface Hotel {
+  hotel_name: string;
+  hotel_id: string;
+  price_per_night: string;
+  total_price: string;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  distance: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 interface MatchInfo {
   home_team: string;
   away_team: string;
@@ -56,6 +70,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   flights?: Flight[];
+  hotels?: Hotel[];
   match?: MatchInfo;
   sort?: string;
   refinement?: Refinement;
@@ -225,6 +240,7 @@ export default function MainLayout() {
         content: data.reply ?? data.message ?? "Something went wrong.",
         timestamp: new Date(),
         flights: data.flights,
+        hotels: data.hotels,
         match: data.match,
         sort: data.sort,
         refinement: data.refinement,

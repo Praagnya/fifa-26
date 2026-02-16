@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, END
 
 from backend.app.agents.state import AgentState
-from backend.app.agents.nodes import orchestrator, liaison, scout
+from backend.app.agents.nodes import orchestrator, liaison, scout, concierge
 
 
 def _route_after_orchestrator(state: AgentState) -> str:
@@ -9,6 +9,8 @@ def _route_after_orchestrator(state: AgentState) -> str:
     intent = state.get("intent", "general")
     if intent == "flight_search":
         return "scout"
+    if intent == "hotel_search":
+        return "concierge"
     # flight_refine skips scout (no API call) — goes straight to liaison
     return "liaison"
 
@@ -17,19 +19,21 @@ workflow = StateGraph(AgentState)
 
 workflow.add_node("orchestrator", orchestrator)
 workflow.add_node("scout", scout)
+workflow.add_node("concierge", concierge)
 workflow.add_node("liaison", liaison)
 
 workflow.set_entry_point("orchestrator")
 
-# Conditional routing: flight_search → scout, everything else → liaison
+# Conditional routing: flight_search → scout, hotel_search → concierge, else → liaison
 workflow.add_conditional_edges(
     "orchestrator",
     _route_after_orchestrator,
-    {"scout": "scout", "liaison": "liaison"},
+    {"scout": "scout", "concierge": "concierge", "liaison": "liaison"},
 )
 
-# Scout always flows to liaison for final formatting
+# Scout and Concierge always flow to liaison for final formatting
 workflow.add_edge("scout", "liaison")
+workflow.add_edge("concierge", "liaison")
 workflow.add_edge("liaison", END)
 
 graph = workflow.compile()

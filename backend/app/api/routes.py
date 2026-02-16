@@ -145,6 +145,9 @@ async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user))
             "departure_date": request.date or prev.get("departure_date", ""),
             "preferred_airline": request.airline or prev.get("preferred_airline", ""),
             "flight_results": [],
+            "hotel_results": [],
+            "check_in_date": prev.get("check_in_date", ""),
+            "check_out_date": prev.get("check_out_date", ""),
             "result": "",
             "session_id": sid,
             "error": "",
@@ -163,6 +166,8 @@ async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user))
             "departure_city": result.get("departure_city") or prev.get("departure_city", ""),
             "departure_date": result.get("departure_date") or prev.get("departure_date", ""),
             "preferred_airline": result.get("preferred_airline") or prev.get("preferred_airline", ""),
+            "check_in_date": result.get("check_in_date") or prev.get("check_in_date", ""),
+            "check_out_date": result.get("check_out_date") or prev.get("check_out_date", ""),
             "entities": result.get("entities") or prev.get("entities", {}),
             "nonstop": result.get("nonstop", prev.get("nonstop", False)),
             "max_results": result.get("max_results", prev.get("max_results", 10)),
@@ -174,6 +179,10 @@ async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user))
         flight_results = result.get("flight_results", [])
         if flight_results and not any("error" in f for f in flight_results):
             response["flights"] = flight_results
+
+        hotel_results = result.get("hotel_results", [])
+        if hotel_results and not any("error" in h for h in hotel_results):
+            response["hotels"] = hotel_results
 
         match_data = result.get("match_data", [])
         if match_data:

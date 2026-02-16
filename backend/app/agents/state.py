@@ -13,6 +13,9 @@ class AgentState(TypedDict):
     departure_date: str             # optional explicit travel date (YYYY-MM-DD)
     preferred_airline: str          # optional IATA airline code preference
     flight_results: list[dict]      # Amadeus search results
+    hotel_results: list[dict]       # Amadeus hotel search results
+    check_in_date: str              # hotel check-in date (YYYY-MM-DD)
+    check_out_date: str             # hotel check-out date (YYYY-MM-DD)
     result: str                     # final response text
     session_id: str                 # conversation session id
     error: str                      # error messages if any

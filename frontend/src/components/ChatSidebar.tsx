@@ -27,6 +27,20 @@ interface Flight {
   segments: FlightSegment[];
 }
 
+interface Hotel {
+  hotel_name: string;
+  hotel_id: string;
+  price_per_night: string;
+  total_price: string;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  distance: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 interface MatchInfo {
   home_team: string;
   away_team: string;
@@ -49,6 +63,7 @@ interface Message {
   content: string;
   timestamp: Date;
   flights?: Flight[];
+  hotels?: Hotel[];
   match?: MatchInfo;
   sort?: string;
   refinement?: Refinement;
@@ -537,6 +552,176 @@ function FlightResults({
   );
 }
 
+/* ── Hotel Card ────────────────────────────────────────────────── */
+
+function formatHotelDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
+}
+
+function HotelCard({ hotel }: { hotel: Hotel }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="bg-[#1a1a24] border border-white/10 rounded-xl overflow-hidden hover:border-indigo-500/30 transition-colors">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full text-left px-3.5 py-3 cursor-pointer"
+      >
+        {/* Hotel name + expand icon */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-white truncate pr-2">{hotel.hotel_name}</span>
+          <svg
+            className={`w-3.5 h-3.5 text-white/30 transition-transform shrink-0 ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+
+        {/* Price row */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-base font-bold text-green-400 font-['Oswald']">
+              {hotel.price_per_night.split(" ")[0]}
+            </span>
+            <span className="text-[10px] text-white/30">/night</span>
+          </div>
+          <span className="text-[11px] text-white/50">
+            {hotel.total_price.split(" ")[0]} total
+          </span>
+        </div>
+
+        {/* Dates + nights */}
+        <div className="flex items-center gap-3 mb-1.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-white/40">
+            <span>{formatHotelDate(hotel.check_in)}</span>
+            <svg className="w-3 h-3 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+            <span>{formatHotelDate(hotel.check_out)}</span>
+          </div>
+          <span className="text-[10px] text-indigo-400/60 font-semibold">
+            {hotel.nights} {hotel.nights === 1 ? "night" : "nights"}
+          </span>
+        </div>
+
+        {/* Distance badge */}
+        {hotel.distance && (
+          <div className="flex items-center gap-1 mt-1">
+            <svg className="w-3 h-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-[10px] text-white/30">{hotel.distance} from center</span>
+          </div>
+        )}
+      </button>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="border-t border-white/5 px-3.5 py-3">
+          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2">Details</p>
+          {hotel.address && (
+            <div className="flex items-start gap-2 mb-2">
+              <svg className="w-3 h-3 text-white/20 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span className="text-[10px] text-white/40">{hotel.address}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-4 text-[10px] text-white/30">
+            <span>Check-in: {formatHotelDate(hotel.check_in)}</span>
+            <span>Check-out: {formatHotelDate(hotel.check_out)}</span>
+          </div>
+          <div className="mt-2 text-[10px] text-white/20 font-mono">
+            ID: {hotel.hotel_id}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Hotel Results ─────────────────────────────────────────────── */
+
+type HotelSortKey = "price" | "distance";
+
+function parseHotelPrice(price: string): number {
+  const num = price.replace(/[^0-9.]/g, "");
+  return parseFloat(num) || 0;
+}
+
+function parseDistance(dist: string): number {
+  const num = dist.replace(/[^0-9.]/g, "");
+  return parseFloat(num) || Infinity;
+}
+
+const HOTEL_SORT_OPTIONS: { key: HotelSortKey; label: string }[] = [
+  { key: "price", label: "Cheapest" },
+  { key: "distance", label: "Nearest" },
+];
+
+function HotelResults({
+  hotels,
+  match,
+}: {
+  hotels: Hotel[];
+  match?: MatchInfo;
+}) {
+  const [sortBy, setSortBy] = useState<HotelSortKey>("price");
+
+  const sorted = useMemo(() => {
+    return [...hotels].sort((a, b) => {
+      if (sortBy === "price") return parseHotelPrice(a.total_price) - parseHotelPrice(b.total_price);
+      return parseDistance(a.distance) - parseDistance(b.distance);
+    });
+  }, [hotels, sortBy]);
+
+  return (
+    <>
+      {match && <MatchBanner match={match} />}
+
+      {/* Hotels header + sort */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+          <span className="text-xs font-semibold text-white/60">
+            {sorted.length} hotels
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <svg className="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+          </svg>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as HotelSortKey)}
+            className="bg-transparent text-[10px] text-white/50 outline-none cursor-pointer appearance-none pr-1 [&>option]:bg-[#1a1a24]"
+          >
+            {HOTEL_SORT_OPTIONS.map((opt) => (
+              <option key={opt.key} value={opt.key}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Hotel cards */}
+      <div className="space-y-2">
+        {sorted.map((h, i) => (
+          <HotelCard key={i} hotel={h} />
+        ))}
+        {sorted.length === 0 && (
+          <p className="text-[11px] text-white/30 text-center py-2">No hotels found</p>
+        )}
+      </div>
+    </>
+  );
+}
+
 /* ── Main Component ────────────────────────────────────────────── */
 
 interface Props {
@@ -781,7 +966,9 @@ export default function ChatSidebar({
                 }`}
               >
                 {/* Text content */}
-                {msg.role === "assistant" && msg.flights && msg.flights.length > 0 ? (
+                {msg.role === "assistant" && msg.hotels && msg.hotels.length > 0 ? (
+                  <HotelResults hotels={msg.hotels} match={msg.match} />
+                ) : msg.role === "assistant" && msg.flights && msg.flights.length > 0 ? (
                   <FlightResults flights={msg.flights} match={msg.match} sortHint={sortHint} />
                 ) : isRefinement && refinementFlights ? (
                   <>

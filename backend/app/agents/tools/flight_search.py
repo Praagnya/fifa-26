@@ -244,33 +244,78 @@ def _get_timezone_label(offset: str, country: str) -> str:
     """Best-effort mapping of offset+country to timezone code."""
     if not offset:
         return ""
-    
+
     # Normalize offset
-    if "Z" in offset: 
+    if "Z" in offset:
         return "UTC"
-    
-    # India
-    if country == "IN" and "+05:30" in offset: return "IST"
-    
-    # Hong Kong / China / Singapore
-    if "+08:00" in offset:
-        if country == "HK": return "HKT"
-        if country == "CN": return "CST"
-        if country == "SG": return "SGT"
-    
+
+    # ── Country-specific mappings ──
+    _COUNTRY_TZ: dict[str, dict[str, str]] = {
+        # South Asia
+        "IN": {"+05:30": "IST"},
+        "PK": {"+05:00": "PKT"},
+        "BD": {"+06:00": "BST"},
+        "LK": {"+05:30": "SLST"},
+        "NP": {"+05:45": "NPT"},
+        # East Asia
+        "CN": {"+08:00": "CST"},
+        "HK": {"+08:00": "HKT"},
+        "TW": {"+08:00": "CST"},
+        "JP": {"+09:00": "JST"},
+        "KR": {"+09:00": "KST"},
+        # Southeast Asia
+        "SG": {"+08:00": "SGT"},
+        "MY": {"+08:00": "MYT"},
+        "TH": {"+07:00": "ICT"},
+        "VN": {"+07:00": "ICT"},
+        "ID": {"+07:00": "WIB", "+08:00": "WITA", "+09:00": "WIT"},
+        "PH": {"+08:00": "PHT"},
+        # Middle East
+        "AE": {"+04:00": "GST"},
+        "SA": {"+03:00": "AST"},
+        "QA": {"+03:00": "AST"},
+        "TR": {"+03:00": "TRT"},
+        "IR": {"+03:30": "IRST"},
+        "IL": {"+02:00": "IST", "+03:00": "IDT"},
+        # Africa
+        "ZA": {"+02:00": "SAST"},
+        "KE": {"+03:00": "EAT"},
+        "ET": {"+03:00": "EAT"},
+        "NG": {"+01:00": "WAT"},
+        "EG": {"+02:00": "EET"},
+        # Oceania
+        "AU": {"+10:00": "AEST", "+11:00": "AEDT", "+08:00": "AWST", "+09:30": "ACST"},
+        "NZ": {"+12:00": "NZST", "+13:00": "NZDT"},
+        # South America
+        "BR": {"-03:00": "BRT"},
+        "AR": {"-03:00": "ART"},
+        "CL": {"-04:00": "CLT", "-03:00": "CLST"},
+        "CO": {"-05:00": "COT"},
+        "PE": {"-05:00": "PET"},
+        # UK / Ireland
+        "GB": {"+00:00": "GMT", "+01:00": "BST"},
+        "IE": {"+00:00": "GMT", "+01:00": "IST"},
+        # Russia
+        "RU": {"+03:00": "MSK", "+05:00": "YEKT", "+07:00": "KRAT", "+09:00": "YAKT", "+10:00": "VLAT"},
+    }
+
+    if country in _COUNTRY_TZ:
+        for off, label in _COUNTRY_TZ[country].items():
+            if off in offset:
+                return label
+
     # US / Canada / Mexico
-    # (Simplified mappings, ignoring daylight savings complexity for label)
     if country in ("US", "CA", "MX"):
         if "-05:00" in offset or "-04:00" in offset: return "ET"
         if "-06:00" in offset or "-05:00" in offset: return "CT"
         if "-07:00" in offset or "-06:00" in offset: return "MT"
         if "-08:00" in offset or "-07:00" in offset: return "PT"
-    
-    # Europe
-    if country in ("GB", "IE", "PT"):
-        if "+00:00" in offset or "+01:00" in offset: return "GMT/BST"
+        if "-10:00" in offset: return "HT"
+
+    # Europe (generic)
     if "+01:00" in offset or "+02:00" in offset: return "CET/CEST"
-    
+    if "+00:00" in offset: return "GMT"
+
     # Fallback to offset
     return f"UTC{offset}"
 

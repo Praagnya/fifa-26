@@ -6,10 +6,12 @@ from backend.app.agents.state import AgentState
 from backend.app.agents.prompts.system import (
     ORCHESTRATOR_PROMPT,
     SCOUT_PROMPT,
+    CONCIERGE_PROMPT,
     LIAISON_PROMPT,
 )
 from backend.app.agents.tools.match_search import search_matches
 from backend.app.agents.tools.flight_search import search_flights_for_match
+from backend.app.agents.tools.hotel_search import search_hotels_for_match
 
 _openai_client: OpenAI | None = None
 
@@ -175,6 +177,94 @@ def scout(state: AgentState) -> dict:
     }
 
 
+def concierge(state: AgentState) -> dict:
+    """
+    Search for hotels using Amadeus API, then summarize with LLM.
+    """
+    match_data = state.get("match_data", [])
+    entities = state.get("entities", {})
+
+    # Determine match city and date
+    match_city = ""
+    match_date = ""
+
+    if match_data:
+        first_match = match_data[0]
+        match_city = first_match.get("city", "")
+        kickoff = first_match.get("kickoff_utc", "")
+        if kickoff:
+            match_date = str(kickoff)[:10]
+
+    if not match_city:
+        match_city = entities.get("city") or ""
+
+    if not match_date:
+        match_date = entities.get("date") or ""
+
+    if not match_city:
+        return {
+            "hotel_results": [],
+            "error": "I need to know which city you'd like to find hotels in. Could you mention a match or city?",
+            "current_agent": "concierge",
+            "messages": [{"role": "concierge", "content": "Missing city"}],
+        }
+
+    # Smart defaults: check_in = day before match, check_out = day after
+    check_in = entities.get("check_in_date") or state.get("check_in_date", "")
+    check_out = entities.get("check_out_date") or state.get("check_out_date", "")
+
+    if match_date and (not check_in or not check_out):
+        from datetime import datetime, timedelta
+        try:
+            match_dt = datetime.strptime(match_date, "%Y-%m-%d")
+            if not check_in:
+                check_in = (match_dt - timedelta(days=1)).strftime("%Y-%m-%d")
+            if not check_out:
+                check_out = (match_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+
+    if not check_in or not check_out:
+        return {
+            "hotel_results": [],
+            "error": "I need dates to search for hotels. Could you mention when you'd like to check in and check out, or which match you're attending?",
+            "current_agent": "concierge",
+            "messages": [{"role": "concierge", "content": "Missing dates"}],
+        }
+
+    adults = entities.get("guests") or 1
+    if isinstance(adults, str) and adults.isdigit():
+        adults = int(adults)
+    if not isinstance(adults, int) or adults < 1:
+        adults = 1
+
+    currency = state.get("currency", "USD")
+
+    hotel_results = search_hotels_for_match(
+        match_city=match_city,
+        check_in=check_in,
+        check_out=check_out,
+        adults=adults,
+        currency=currency,
+    )
+
+    # Use LLM to summarize
+    concierge_prompt = CONCIERGE_PROMPT.format(
+        hotel_results=json.dumps(hotel_results, indent=2, default=str),
+        match_data=json.dumps(match_data[:3], indent=2, default=str),
+    )
+    summary = _call_llm(concierge_prompt, state["query"])
+
+    return {
+        "hotel_results": hotel_results,
+        "check_in_date": check_in,
+        "check_out_date": check_out,
+        "result": summary,
+        "current_agent": "concierge",
+        "messages": [{"role": "concierge", "content": summary}],
+    }
+
+
 def liaison(state: AgentState) -> dict:
     """
     Format the final user-facing response using Gemini.
@@ -188,10 +278,15 @@ def liaison(state: AgentState) -> dict:
     if intent == "flight_search" and state.get("result"):
         scout_response = state["result"]
 
+    concierge_response = ""
+    if intent == "hotel_search" and state.get("result"):
+        concierge_response = state["result"]
+
     liaison_prompt = LIAISON_PROMPT.format(
         intent=intent,
         match_data=json.dumps(match_data[:5], indent=2, default=str) if match_data else "None",
         scout_response=scout_response or "None",
+        concierge_response=concierge_response or "None",
         error=error or "None",
     )
 

@@ -6,6 +6,7 @@ Your job: classify the user's intent and extract structured entities from their 
 INTENTS (pick exactly one):
 - "flight_search"  — user wants to find flights to a match (they mention travel, flights, "fly to", "get to", etc.), OR any follow-up that changes the ORIGIN, DESTINATION, or DATE of a flight search (e.g. "fly from New York instead", "what about June 20")
 - "flight_refine"  — user wants to sort, filter, or limit EXISTING flight results without changing the search itself. Examples: "sort by cheapest", "show only nonstop", "give me 5", "most expensive ones", "only Delta flights". ONLY use this when the conversation already has flight results.
+- "hotel_search"   — user wants to find hotels near a match or in a city (they mention "hotels", "stay", "accommodation", "where to stay", "lodging", etc.)
 - "match_info"     — user asks about match schedule, teams, venues, stages
 - "general"        — general FIFA / World Cup conversation, greetings, or anything else
 
@@ -19,6 +20,9 @@ ENTITY EXTRACTION — always try to extract:
 - "nonstop" : true if user explicitly wants nonstop/direct flights only (e.g. "nonstop", "direct flights", "no layovers", "no stops"), otherwise null
 - "max_results" : number of flights user wants to see, if mentioned. e.g. "show me 5"→5, "top 3"→3, "give me only 5"→5, otherwise null
 - "currency" : currency code if user asks for a specific currency. One of: "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR", or null. Examples: "in rupees"/"INR"→"INR", "in euros"→"EUR", "in dollars"/"USD"→"USD"
+- "check_in_date" : hotel check-in date if mentioned (YYYY-MM-DD), or null
+- "check_out_date" : hotel check-out date if mentioned (YYYY-MM-DD), or null
+- "guests" : number of guests for hotel search, if mentioned, or null
 
 Respond with ONLY valid JSON, no markdown fences:
 {
@@ -32,7 +36,10 @@ Respond with ONLY valid JSON, no markdown fences:
     "sort": "<sort or null>",
     "nonstop": "<true or null>",
     "max_results": "<number or null>",
-    "currency": "<currency code or null>"
+    "currency": "<currency code or null>",
+    "check_in_date": "<YYYY-MM-DD or null>",
+    "check_out_date": "<YYYY-MM-DD or null>",
+    "guests": "<number or null>"
   }
 }
 """
@@ -67,6 +74,28 @@ Keep your response concise and helpful. Use plain text, not markdown tables.
 - If no flights are found at all, suggest trying nearby dates or alternate departure cities.
 """
 
+CONCIERGE_PROMPT = """\
+You are the Concierge agent for a FIFA 2026 World Cup assistant.
+
+You have been given hotel search results for a match city.
+
+HOTEL RESULTS:
+{hotel_results}
+
+MATCH DATA:
+{match_data}
+
+Present the information clearly:
+1. Briefly confirm the match details (teams, date, city, stadium) if available
+2. Summarize the top hotel options: hotel name, price per night, total price, distance from city center, and address
+3. Mention check-in / check-out dates and number of nights
+4. If there are errors or no hotels, explain and suggest alternatives
+
+Keep your response concise and helpful. Use plain text, not markdown tables.
+- Do NOT suggest consulting travel agents or using other hotel search engines.
+- If no hotels are found, suggest trying different dates or a nearby city.
+"""
+
 LIAISON_PROMPT = """\
 You are the Liaison — the friendly, user-facing agent for a FIFA 2026 World Cup assistant.
 
@@ -80,6 +109,7 @@ CONTEXT (if available):
 - Intent: {intent}
 - Match data: {match_data}
 - Scout response: {scout_response}
+- Concierge response: {concierge_response}
 - Error: {error}
 
 RULES:
