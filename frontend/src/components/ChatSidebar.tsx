@@ -553,6 +553,7 @@ interface Props {
   onCurrencyChange: (c: string) => void;
   isAuthenticated: boolean;
   onAuthRequired: () => void;
+  queriesRemaining: number;
 }
 
 export const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR"];
@@ -570,6 +571,7 @@ export default function ChatSidebar({
   onCurrencyChange,
   isAuthenticated,
   onAuthRequired,
+  queriesRemaining,
 }: Props) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -842,21 +844,33 @@ export default function ChatSidebar({
 
         {/* input area */}
         {isAuthenticated && <div className="p-4 border-t border-white/5 shrink-0">
+          {/* queries remaining — hide for admins (unlimited = -1) */}
+          {queriesRemaining >= 0 && (
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className={`text-[10px] font-mono ${queriesRemaining <= 3 ? "text-red-400/70" : "text-white/20"}`}>
+                {queriesRemaining}/15 queries left
+              </span>
+              {queriesRemaining <= 3 && queriesRemaining > 0 && (
+                <span className="text-[10px] text-amber-400/60">Running low</span>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             {/* Text input */}
-            <div className="flex-1 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus-within:border-indigo-500/50 transition-colors">
+            <div className={`flex-1 flex items-center gap-2 bg-white/5 border rounded-xl px-4 py-2 transition-colors ${queriesRemaining === 0 ? "border-red-500/20 opacity-50" : "border-white/10 focus-within:border-indigo-500/50"}`}>
               <input
                 ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`Ask in ${currency}...`}
-                className="flex-1 bg-transparent text-sm text-white placeholder-white/20 outline-none font-['Inter']"
+                placeholder={queriesRemaining === 0 ? "Query limit reached" : `Ask in ${currency}...`}
+                disabled={queriesRemaining === 0}
+                className="flex-1 bg-transparent text-sm text-white placeholder-white/20 outline-none font-['Inter'] disabled:cursor-not-allowed"
               />
               <button
                 onClick={handleSendMessage}
-                disabled={!input.trim()}
+                disabled={!input.trim() || queriesRemaining === 0}
                 className="shrink-0 w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-default flex items-center justify-center transition-colors cursor-pointer"
               >
                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

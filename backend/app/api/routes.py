@@ -2,12 +2,13 @@ import logging
 import traceback
 from collections import defaultdict
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
 from backend.app.db.repository import get_all_matches, get_match_by_id, get_h2h_matches, get_recent_matches
 from backend.app.agents.graph import graph
+from backend.app.api.auth import get_current_user, check_rate_limit, record_query, AuthUser
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +91,30 @@ async def get_head_to_head(team1: str, team2: str):
     }
 
 
+@router.get("/chat/limit")
+async def chat_limit(user: AuthUser = Depends(get_current_user)):
+    """Return the user's current rate limit status."""
+    status = check_rate_limit(user)
+    return {"remaining": status["remaining"], "limit": 15, "reset_in": status["reset_in"]}
+
+
 @router.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user)):
+    # Enforce rate limit
+    limit_status = check_rate_limit(user)
+    if not limit_status["allowed"]:
+        reset_in = limit_status["reset_in"]
+        hours = reset_in // 3600
+        mins = (reset_in % 3600) // 60
+        time_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. You've used all 15 queries for this 12-hour window. Try again in {time_str}.",
+        )
+
+    # Record this query
+    remaining = record_query(user)
+
     try:
         sid = request.session_id or "default"
         prev = _sessions.get(sid, {})
@@ -181,6 +204,7 @@ async def chat(request: ChatRequest):
                 refinement["max_results"] = int(max_results)
             response["refinement"] = refinement
 
+        response["queries_remaining"] = remaining
         return response
     except Exception as e:
         logger.error(f"Chat error: {traceback.format_exc()}")

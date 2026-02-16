@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Outlet, useOutletContext } from "react-router-dom";
 import type { Match } from "../types/match";
 import { useAuth } from "../context/AuthContext";
 import { useFavorites } from "../hooks/useFavorites";
+import { supabase } from "../lib/supabase";
 import LeftSidebar from "./LeftSidebar";
 import ChatSidebar from "./ChatSidebar";
 import TeamPicker from "./TeamPicker";
@@ -73,6 +74,13 @@ export interface LayoutContext {
   openAuthModal: () => void;
 }
 
+const QUERY_LIMIT = 15;
+
+async function getAccessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
 export default function MainLayout() {
   const { user } = useAuth();
   const { favorites, loaded: favsLoaded, syncFavorites, removeFavorite } =
@@ -89,6 +97,29 @@ export default function MainLayout() {
   const [selectedFlightMatch, setSelectedFlightMatch] = useState<Match | null>(null);
   const [focusedMatchId, setFocusedMatchId] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [queriesRemaining, setQueriesRemaining] = useState(QUERY_LIMIT);
+
+  // Fetch remaining queries from backend
+  const refreshQueryCount = useCallback(async () => {
+    if (!user) { setQueriesRemaining(QUERY_LIMIT); return; }
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      const res = await fetch("/api/v1/chat/limit", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQueriesRemaining(data.remaining);
+      }
+    } catch { /* ignore */ }
+  }, [user]);
+
+  useEffect(() => {
+    refreshQueryCount();
+    const interval = setInterval(refreshQueryCount, 60_000);
+    return () => clearInterval(interval);
+  }, [refreshQueryCount]);
 
   // Auto-clear focus after a short delay so we can re-focus same match if clicked again
   useEffect(() => {
@@ -139,12 +170,17 @@ export default function MainLayout() {
     setIsTyping(true);
 
     try {
+      const token = await getAccessToken();
+      if (!token) {
+        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Session expired. Please sign in again.", timestamp: new Date() }]);
+        setIsTyping(false);
+        return;
+      }
+
       let messagePayload = text;
-      // If we have a selected match for flight search, append context
       if (selectedFlightMatch) {
           const m = selectedFlightMatch;
           const matchContext = `\n\n[Context: User selected match: ${m.home_team} vs ${m.away_team} at ${m.city}]`;
-          // Only append if not already present (simple check)
           if (!text.includes("User selected match")) {
               messagePayload += matchContext;
           }
@@ -161,10 +197,28 @@ export default function MainLayout() {
       if (date) payload.date = date;
       const res = await fetch("/api/v1/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
+
+      // Handle rate limit response
+      if (res.status === 429) {
+        const err = await res.json();
+        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: err.detail, timestamp: new Date() }]);
+        setQueriesRemaining(0);
+        return;
+      }
+
       const data = await res.json();
+
+      // Update remaining count from backend
+      if (data.queries_remaining !== undefined) {
+        setQueriesRemaining(data.queries_remaining);
+      }
+
       const botMsg: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -175,7 +229,6 @@ export default function MainLayout() {
         sort: data.sort,
         refinement: data.refinement,
       };
-      // Auto-update currency dropdown if the LLM extracted a currency preference
       if (data.currency) {
         setCurrency(data.currency);
       }
@@ -263,6 +316,7 @@ export default function MainLayout() {
         onCurrencyChange={setCurrency}
         isAuthenticated={!!user}
         onAuthRequired={() => setShowAuthModal(true)}
+        queriesRemaining={queriesRemaining}
       />
 
       {/* auth modal */}
