@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import type { Match } from "../types/match";
 import { AIRLINE_NAMES } from "../data/airlines";
+import HotelSearchForm from "./HotelSearchForm"; // NEW
+
+
 
 interface FlightSegment {
   from: string;
@@ -57,27 +60,26 @@ interface Refinement {
   max_results?: number;
 }
 
+interface HotelResponse {
+  cheapest: Hotel[];
+  nearest: Hotel[];
+  best_rated: Hotel[];
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
   flights?: Flight[];
-  hotels?: Hotel[];
+  hotels?: Hotel[] | HotelResponse;
   match?: MatchInfo;
   sort?: string;
   refinement?: Refinement;
+  showHotelForm?: boolean; // NEW
+  checkIn?: string;
+  checkOut?: string;
 }
-
-interface Props {
-  open: boolean;
-  onToggle: () => void;
-  matches: Match[];
-  width: number;
-  onWidthChange: (w: number) => void;
-}
-
-
 
 function formatDuration(dur: string) {
   return dur.replace(/(\d+)h/, "$1h ").replace(/(\d+)m/, "$1m").trim();
@@ -613,7 +615,7 @@ function HotelCard({ hotel }: { hotel: Hotel }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="text-[10px] text-white/30">{hotel.distance} from center</span>
+            <span className="text-[10px] text-white/30">{hotel.distance}</span>
           </div>
         )}
       </button>
@@ -662,62 +664,100 @@ const HOTEL_SORT_OPTIONS: { key: HotelSortKey; label: string }[] = [
   { key: "distance", label: "Nearest" },
 ];
 
+function HotelCategorySection({ title, hotels }: { title: string; hotels: Hotel[] }) {
+  if (!hotels || hotels.length === 0) return null;
+  return (
+    <div className="mb-4 last:mb-0">
+      <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 border-b border-indigo-500/20 pb-1">
+        {title}
+      </h4>
+      <div className="space-y-2">
+        {hotels.map((h, i) => (
+          <HotelCard key={i} hotel={h} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function HotelResults({
   hotels,
   match,
 }: {
-  hotels: Hotel[];
+  hotels: Hotel[] | HotelResponse;
   match?: MatchInfo;
 }) {
   const [sortBy, setSortBy] = useState<HotelSortKey>("price");
 
-  const sorted = useMemo(() => {
-    return [...hotels].sort((a, b) => {
+  // Check if grouped
+  const isGrouped = !Array.isArray(hotels) && "cheapest" in hotels;
+
+  const sortedList = useMemo(() => {
+    if (isGrouped) return [];
+    return [...(hotels as Hotel[])].sort((a, b) => {
       if (sortBy === "price") return parseHotelPrice(a.total_price) - parseHotelPrice(b.total_price);
       return parseDistance(a.distance) - parseDistance(b.distance);
     });
-  }, [hotels, sortBy]);
+  }, [hotels, sortBy, isGrouped]);
 
   return (
     <>
       {match && <MatchBanner match={match} />}
 
-      {/* Hotels header + sort */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-          <span className="text-xs font-semibold text-white/60">
-            {sorted.length} hotels
-          </span>
+      {isGrouped ? (
+        // Render Categorized View
+        <div className="mt-2">
+           <HotelCategorySection title="Cheapest Options" hotels={(hotels as HotelResponse).cheapest} />
+           <HotelCategorySection title="Nearest to Stadium" hotels={(hotels as HotelResponse).nearest} />
+           <HotelCategorySection title="Best Rated" hotels={(hotels as HotelResponse).best_rated} />
+           {((hotels as HotelResponse).best_rated?.length === 0) && (
+             <div className="mb-4">
+                <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1 border-b border-indigo-500/20 pb-1">
+                  Best Rated
+                </h4>
+                <p className="text-[10px] text-white/30 italic">Ratings not available yet.</p>
+             </div>
+           )}
         </div>
+      ) : (
+        // Render Standard List View
+        <>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span className="text-xs font-semibold text-white/60">
+                {sortedList.length} hotels
+              </span>
+            </div>
 
-        <div className="flex items-center gap-1">
-          <svg className="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-          </svg>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as HotelSortKey)}
-            className="bg-transparent text-[10px] text-white/50 outline-none cursor-pointer appearance-none pr-1 [&>option]:bg-[#1a1a24]"
-          >
-            {HOTEL_SORT_OPTIONS.map((opt) => (
-              <option key={opt.key} value={opt.key}>{opt.label}</option>
+            <div className="flex items-center gap-1">
+              <svg className="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+              </svg>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as HotelSortKey)}
+                className="bg-transparent text-[10px] text-white/50 outline-none cursor-pointer appearance-none pr-1 [&>option]:bg-[#1a1a24]"
+              >
+                {HOTEL_SORT_OPTIONS.map((opt) => (
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {sortedList.map((h, i) => (
+              <HotelCard key={i} hotel={h} />
             ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Hotel cards */}
-      <div className="space-y-2">
-        {sorted.map((h, i) => (
-          <HotelCard key={i} hotel={h} />
-        ))}
-        {sorted.length === 0 && (
-          <p className="text-[11px] text-white/30 text-center py-2">No hotels found</p>
-        )}
-      </div>
+            {sortedList.length === 0 && (
+              <p className="text-[11px] text-white/30 text-center py-2">No hotels found</p>
+            )}
+          </div>
+        </>
+      )}
     </>
   );
 }
@@ -966,7 +1006,7 @@ export default function ChatSidebar({
                 }`}
               >
                 {/* Text content */}
-                {msg.role === "assistant" && msg.hotels && msg.hotels.length > 0 ? (
+                {msg.role === "assistant" && msg.hotels ? (
                   <HotelResults hotels={msg.hotels} match={msg.match} />
                 ) : msg.role === "assistant" && msg.flights && msg.flights.length > 0 ? (
                   <FlightResults flights={msg.flights} match={msg.match} sortHint={sortHint} />
@@ -997,6 +1037,17 @@ export default function ChatSidebar({
                       return <span key={i}>{part}</span>;
                     })}
                   </div>
+                )}
+                
+                {/* Render Interactive Form if signal present */}
+                {msg.showHotelForm && (
+                    <HotelSearchForm
+                        onSearch={(query) => onSendMessage(query)}
+                        defaultCheckIn={msg.checkIn}
+                        defaultCheckOut={msg.checkOut}
+                        city={msg.match?.city}
+                        matchDate={msg.match?.kickoff_utc}
+                    />
                 )}
 
                 <p

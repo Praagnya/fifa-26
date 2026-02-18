@@ -64,16 +64,25 @@ export interface Refinement {
   max_results?: number;
 }
 
+export interface HotelResponse {
+  cheapest: Hotel[];
+  nearest: Hotel[];
+  best_rated: Hotel[];
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
   flights?: Flight[];
-  hotels?: Hotel[];
+  hotels?: Hotel[] | HotelResponse;
   match?: MatchInfo;
   sort?: string;
   refinement?: Refinement;
+  showHotelForm?: boolean;
+  checkIn?: string;
+  checkOut?: string;
 }
 
 export interface LayoutContext {
@@ -244,6 +253,9 @@ export default function MainLayout() {
         match: data.match,
         sort: data.sort,
         refinement: data.refinement,
+        showHotelForm: data.show_hotel_form,
+        checkIn: data.check_in,
+        checkOut: data.check_out,
       };
       if (data.currency) {
         setCurrency(data.currency);

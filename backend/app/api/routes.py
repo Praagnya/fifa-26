@@ -10,6 +10,17 @@ from backend.app.db.repository import get_all_matches, get_match_by_id, get_h2h_
 from backend.app.agents.graph import graph
 from backend.app.api.auth import get_current_user, check_rate_limit, record_query, AuthUser
 
+
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("backend_debug.log"),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -148,6 +159,7 @@ async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user))
             "hotel_results": [],
             "check_in_date": prev.get("check_in_date", ""),
             "check_out_date": prev.get("check_out_date", ""),
+            "show_hotel_search_form": False,
             "result": "",
             "session_id": sid,
             "error": "",
@@ -181,12 +193,27 @@ async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user))
             response["flights"] = flight_results
 
         hotel_results = result.get("hotel_results", [])
-        if hotel_results and not any("error" in h for h in hotel_results):
-            response["hotels"] = hotel_results
+        if hotel_results:
+            # Check for errors safely (handle dict or list)
+            has_error = False
+            if isinstance(hotel_results, list):
+                if any("error" in h for h in hotel_results):
+                    has_error = True
+            elif isinstance(hotel_results, dict):
+                 if "error" in hotel_results:
+                     has_error = True
+            
+            if not has_error:
+                response["hotels"] = hotel_results
 
         match_data = result.get("match_data", [])
         if match_data:
             response["match"] = match_data[0]  # The primary match
+
+        if result.get("show_hotel_search_form"):
+            response["show_hotel_form"] = True
+            response["check_in"] = result.get("check_in_date")
+            response["check_out"] = result.get("check_out_date")
 
         # Pass sort and currency preferences from orchestrator entities
         entities = result.get("entities", {})

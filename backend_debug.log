@@ -1,0 +1,71 @@
+
+2026-02-17 00:00:18,975 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:00:28,005 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:00:34,539 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:00:37,642 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 00:00:38,026 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&city=ilike.%25Mexico+City%25&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-17 00:00:38,028 - backend.app.agents.nodes - INFO - ORCHESTRATOR: intent=flight_refine, departure_city='', entities={'team': None, 'city': 'Mexico City', 'date': None, 'departure_city': None, 'airline': None, 'sort': None, 'nonstop': None, 'max_results': None, 'currency': None, 'check_in_date': None, 'check_out_date': None, 'guests': None, 'hotel_preference': None, 'max_distance_miles': None}
+2026-02-17 00:00:39,822 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 00:00:52,101 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:01:04,177 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:02:05,013 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:02:10,098 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:02:28,977 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:02:35,100 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:02:38,044 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 00:02:38,398 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&city=ilike.%25Mexico+City%25&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-17 00:02:38,400 - backend.app.agents.nodes - INFO - ORCHESTRATOR: intent=flight_search, departure_city='', entities={'team': None, 'city': 'Mexico City', 'date': None, 'departure_city': None, 'airline': None, 'sort': None, 'nonstop': None, 'max_results': None, 'currency': None, 'check_in_date': None, 'check_out_date': None, 'guests': None, 'hotel_preference': None, 'max_distance_miles': None}
+2026-02-17 00:02:38,402 - backend.app.agents.nodes - INFO - SCOUT: departure_city='', entities={'team': None, 'city': 'Mexico City', 'date': None, 'departure_city': None, 'airline': None, 'sort': None, 'nonstop': None, 'max_results': None, 'currency': None, 'check_in_date': None, 'check_out_date': None, 'guests': None, 'hotel_preference': None, 'max_distance_miles': None}
+2026-02-17 00:02:38,403 - backend.app.agents.nodes - INFO - SCOUT: resolved match_city='Mexico City', match_date='2026-06-11', departure_city=''
+2026-02-17 00:02:38,403 - backend.app.agents.nodes - WARNING - SCOUT: EARLY RETURN — missing departure_city
+2026-02-17 00:02:39,609 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 00:02:40,125 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:03:01,062 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:03:03,986 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 00:03:04,320 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&or=%28home_team.ilike.%25Mexico+vs+South+Africa%25%2Caway_team.ilike.%25Mexico+vs+South+Africa%25%29&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-17 00:03:04,747 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&city=ilike.%25Mexico+City%25&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-17 00:03:04,748 - backend.app.agents.nodes - INFO - ORCHESTRATOR: intent=flight_search, departure_city='Pheonix', entities={'team': 'Mexico vs South Africa', 'city': 'Mexico City', 'date': '2026-02-18', 'departure_city': 'Pheonix', 'airline': None, 'sort': None, 'nonstop': None, 'max_results': None, 'currency': None, 'check_in_date': None, 'check_out_date': None, 'guests': None, 'hotel_preference': None, 'max_distance_miles': None}
+2026-02-17 00:03:04,749 - backend.app.agents.nodes - INFO - SCOUT: departure_city='Pheonix', entities={'team': 'Mexico vs South Africa', 'city': 'Mexico City', 'date': '2026-02-18', 'departure_city': 'Pheonix', 'airline': None, 'sort': None, 'nonstop': None, 'max_results': None, 'currency': None, 'check_in_date': None, 'check_out_date': None, 'guests': None, 'hotel_preference': None, 'max_distance_miles': None}
+2026-02-17 00:03:04,749 - backend.app.agents.nodes - INFO - SCOUT: resolved match_city='Mexico City', match_date='2026-02-18', departure_city='Pheonix'
+2026-02-17 00:03:08,303 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 00:03:09,182 - backend.app.agents.tools.flight_search - INFO - Cache MISS for key: PHX:MEX:2026-02-18:USD:False:any
+2026-02-17 00:03:22,669 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 00:03:30,320 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 00:03:40,269 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:04:20,367 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:05:20,954 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:05:52,467 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:06:52,894 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:07:52,891 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:08:39,977 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-17 00:09:38,095 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:13:57,560 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-18 15:13:58,010 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-18 15:14:04,872 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-18 15:14:05,150 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:14:05,517 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-18 15:14:05,655 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:14:05,791 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:14:05,918 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:14:30,044 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:14:33,003 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-18 15:14:33,333 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&or=%28home_team.ilike.%25United+States%25%2Caway_team.ilike.%25United+States%25%29&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-18 15:14:33,336 - backend.app.agents.nodes - INFO - ORCHESTRATOR: intent=hotel_search, departure_city='', entities={'team': 'United States', 'city': 'Seattle', 'date': None, 'departure_city': None, 'airline': None, 'sort': None, 'nonstop': None, 'max_results': None, 'currency': None, 'check_in_date': None, 'check_out_date': None, 'guests': None, 'hotel_preference': None, 'max_distance_miles': None}
+2026-02-18 15:14:34,477 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-18 15:15:05,143 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:16:05,309 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:16:16,409 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:16:44,385 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:16:48,221 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-18 15:16:48,559 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/rest/v1/matches?select=%2A&or=%28home_team.ilike.%25United+States%25%2Caway_team.ilike.%25United+States%25%29&order=kickoff_utc.asc "HTTP/2 200 OK"
+2026-02-18 15:16:48,566 - backend.app.agents.nodes - INFO - ORCHESTRATOR: intent=hotel_search, departure_city='', entities={'team': 'United States', 'city': 'Inglewood', 'date': None, 'departure_city': None, 'airline': None, 'sort': 'price', 'nonstop': None, 'max_results': None, 'currency': None, 'check_in_date': '2026-06-17', 'check_out_date': '2026-06-14', 'guests': None, 'hotel_preference': 'cheapest', 'max_distance_miles': None}
+2026-02-18 15:16:48,570 - backend.app.agents.tools.hotel_search - INFO - Hotel cache MISS for key: Inglewood:2026-06-17:2026-06-14:1:USD:cheapest:None
+2026-02-18 15:16:48,577 - backend.app.agents.tools.hotel_search - INFO - Searching hotels by CITY code LAX
+2026-02-18 15:16:53,033 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-18 15:16:54,934 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-18 15:17:16,354 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:18:17,224 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:19:17,147 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:20:17,290 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:21:17,105 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"
+2026-02-18 15:22:21,194 - httpx - INFO - HTTP Request: GET https://tdqkjzaaauiyybxgexbg.supabase.co/auth/v1/user "HTTP/2 200 OK"

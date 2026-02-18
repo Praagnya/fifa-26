@@ -1,6 +1,9 @@
 import json
+import logging
 import os
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 from backend.app.agents.state import AgentState
 from backend.app.agents.prompts.system import (
@@ -44,7 +47,16 @@ def orchestrator(state: AgentState) -> dict:
     query = state["query"]
 
     # Ask Gemini to classify intent and extract entities
-    raw = _call_llm(ORCHESTRATOR_PROMPT, query)
+    # Pass recent history to help context (e.g. "cheapest" after hotel prompt)
+    messages = state.get("messages", [])
+    history_context = ""
+    if messages:
+        # Get last 2 messages for context
+        last_msgs = messages[-2:]
+        history_context = "\nCONVERSATION HISTORY:\n" + "\n".join([f"{m['role'].upper()}: {m['content']}" for m in last_msgs])
+
+    orchestrator_input = f"{ORCHESTRATOR_PROMPT}\n\n{history_context}\n\nUSER QUERY: {query}"
+    raw = _call_llm(orchestrator_input, "")
 
     # Parse JSON from Gemini response
     try:
@@ -86,6 +98,8 @@ def orchestrator(state: AgentState) -> dict:
     if not isinstance(max_results, int) or max_results < 1:
         max_results = 10
 
+    logger.info(f"ORCHESTRATOR: intent={intent}, departure_city='{departure_city}', entities={entities}")
+
     return {
         "intent": intent,
         "entities": entities,
@@ -95,6 +109,7 @@ def orchestrator(state: AgentState) -> dict:
         "currency": currency,
         "nonstop": nonstop,
         "max_results": max_results,
+        "hotel_preference": entities.get("hotel_preference"),
         "current_agent": "orchestrator",
         "messages": [{"role": "orchestrator", "content": f"Intent: {intent}, Entities: {entities}"}],
     }
@@ -107,6 +122,7 @@ def scout(state: AgentState) -> dict:
     match_data = state.get("match_data", [])
     departure_city = state.get("departure_city", "")
     entities = state.get("entities", {})
+    logger.info(f"SCOUT: departure_city='{departure_city}', entities={entities}")
 
     # Determine match city and date from match_data or entities
     match_city = ""
@@ -129,8 +145,11 @@ def scout(state: AgentState) -> dict:
     if not match_date:
         match_date = entities.get("date") or ""
 
+    logger.info(f"SCOUT: resolved match_city='{match_city}', match_date='{match_date}', departure_city='{departure_city}'")
+
     # If we're missing critical info, return an error
     if not departure_city:
+        logger.warning("SCOUT: EARLY RETURN — missing departure_city")
         return {
             "flight_results": [],
             "error": "I need to know where you're flying from. Could you tell me your departure city?",
@@ -139,6 +158,7 @@ def scout(state: AgentState) -> dict:
         }
 
     if not match_city or not match_date:
+        logger.warning(f"SCOUT: EARLY RETURN — missing match_city='{match_city}' or match_date='{match_date}'")
         return {
             "flight_results": [],
             "error": "I need a specific match to search flights for. Could you mention which match or city you'd like to fly to?",
@@ -182,6 +202,8 @@ def concierge(state: AgentState) -> dict:
     Search for hotels using Amadeus API, then summarize with LLM.
     """
     match_data = state.get("match_data", [])
+    print(f"DEBUG CONCIERGE: match_data={match_data}")
+    # DEBUG: Ensure match_data is loaded
     entities = state.get("entities", {})
 
     # Determine match city and date
@@ -239,30 +261,58 @@ def concierge(state: AgentState) -> dict:
         adults = 1
 
     currency = state.get("currency", "USD")
+    hotel_preference = entities.get("hotel_preference")
 
-    hotel_results = search_hotels_for_match(
-        match_city=match_city,
-        check_in=check_in,
-        check_out=check_out,
-        adults=adults,
-        currency=currency,
-    )
+    # Parse max_distance_miles from entities
+    max_distance_miles = entities.get("max_distance_miles")
+    if max_distance_miles is not None:
+        try:
+            max_distance_miles = float(max_distance_miles)
+        except (ValueError, TypeError):
+            max_distance_miles = None
 
-    # Use LLM to summarize
-    concierge_prompt = CONCIERGE_PROMPT.format(
-        hotel_results=json.dumps(hotel_results, indent=2, default=str),
-        match_data=json.dumps(match_data[:3], indent=2, default=str),
-    )
-    summary = _call_llm(concierge_prompt, state["query"])
+    # If no preference, skip search and ask user via UI Form
+    hotel_results = []
+    if hotel_preference:
+        hotel_results = search_hotels_for_match(
+            match_city=match_city,
+            check_in=check_in,
+            check_out=check_out,
+            adults=adults,
+            currency=currency,
+            preference=hotel_preference,
+            max_distance_miles=max_distance_miles,
+        )
 
-    return {
-        "hotel_results": hotel_results,
-        "check_in_date": check_in,
-        "check_out_date": check_out,
-        "result": summary,
-        "current_agent": "concierge",
-        "messages": [{"role": "concierge", "content": summary}],
-    }
+        # Use LLM to summarize results
+        concierge_prompt = CONCIERGE_PROMPT.format(
+            hotel_results=json.dumps(hotel_results, indent=2, default=str),
+            match_data=json.dumps(match_data[:3], indent=2, default=str),
+            hotel_preference=hotel_preference or "None",
+        )
+        summary = _call_llm(concierge_prompt, state["query"])
+        
+        return {
+            "hotel_results": hotel_results,
+            "check_in_date": check_in,
+            "check_out_date": check_out,
+            "result": summary,
+            "current_agent": "concierge",
+            "messages": [{"role": "concierge", "content": summary}],
+            "show_hotel_search_form": False,
+        }
+    else:
+        # No preference -> Trigger UI Form
+        msg_content = f"I found the match in {match_city}. Please select your hotel preferences below to see the best options."
+        return {
+            "hotel_results": [],
+            "check_in_date": check_in,
+            "check_out_date": check_out,
+            "result": msg_content,
+            "current_agent": "concierge",
+            "messages": [{"role": "concierge", "content": msg_content}],
+            "show_hotel_search_form": True,
+        }
 
 
 def liaison(state: AgentState) -> dict:

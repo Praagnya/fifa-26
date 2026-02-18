@@ -522,6 +522,7 @@ def search_flights(
             elif currency_code == "INR": symbol = "₹"
             elif currency_code == "CAD": symbol = "C$"
             elif currency_code == "AUD": symbol = "A$"
+            elif currency_code == "MXN": symbol = "MX$"
             
             flights.append({
                 "price": f"{symbol}{total} {currency_code}",
