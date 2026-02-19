@@ -77,6 +77,17 @@ def orchestrator(state: AgentState) -> dict:
         if entities[key] in ("null", "None", ""):
             entities[key] = None
 
+    # ── Deterministic post-processing rules ──────────────────────────
+    # Rule 1: airline mentioned → always re-query Amadeus with that filter,
+    # never just filter already-fetched frontend results.
+    if intent == "flight_refine" and entities.get("airline"):
+        intent = "flight_search"
+
+    # Rule 2: can't refine if there's nothing fetched yet → do a new search.
+    if intent == "flight_refine" and not state.get("flight_results"):
+        intent = "flight_search"
+    # ─────────────────────────────────────────────────────────────────
+
     # Fetch match data from DB if we have entity info, otherwise preserve previous
     match_data = []
     if entities.get("team") or entities.get("city") or entities.get("stage"):
