@@ -46,6 +46,38 @@ Respond with ONLY valid JSON, no markdown fences:
     "max_distance_miles": "<number or null>"
   }
 }
+
+FEW-SHOT EXAMPLES:
+
+Q: "flights from New York to see Brazil play"
+{"intent":"flight_search","entities":{"team":"Brazil","departure_city":"New York","airline":null,"sort":null,"nonstop":null,"max_results":null,"currency":null,"city":null,"date":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
+
+Q: "sort by fastest"
+{"intent":"flight_refine","entities":{"sort":"duration","airline":null,"nonstop":null,"max_results":null,"team":null,"city":null,"date":null,"departure_city":null,"currency":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
+
+Q: "are there any American Airlines flights?"
+{"intent":"flight_search","entities":{"airline":"AA","sort":null,"nonstop":null,"max_results":null,"team":null,"city":null,"date":null,"departure_city":null,"currency":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
+
+Q: "only show me nonstop"
+{"intent":"flight_refine","entities":{"nonstop":"true","airline":null,"sort":null,"max_results":null,"team":null,"city":null,"date":null,"departure_city":null,"currency":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
+
+Q: "what about Delta instead"
+{"intent":"flight_search","entities":{"airline":"DL","sort":null,"nonstop":null,"max_results":null,"team":null,"city":null,"date":null,"departure_city":null,"currency":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
+
+Q: "show me 3"
+{"intent":"flight_refine","entities":{"max_results":3,"airline":null,"sort":null,"nonstop":null,"team":null,"city":null,"date":null,"departure_city":null,"currency":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
+
+Q: "hotels near the stadium in Miami"
+{"intent":"hotel_search","entities":{"city":"Miami","hotel_preference":"nearest","max_distance_miles":null,"team":null,"date":null,"departure_city":null,"airline":null,"sort":null,"nonstop":null,"max_results":null,"currency":null,"check_in_date":null,"check_out_date":null,"guests":null}}
+
+Q: "cheapest hotels within 5 miles"
+{"intent":"hotel_search","entities":{"hotel_preference":"cheapest","max_distance_miles":5,"city":null,"team":null,"date":null,"departure_city":null,"airline":null,"sort":null,"nonstop":null,"max_results":null,"currency":null,"check_in_date":null,"check_out_date":null,"guests":null}}
+
+Q: "when does Argentina play?"
+{"intent":"match_info","entities":{"team":"Argentina","city":null,"date":null,"departure_city":null,"airline":null,"sort":null,"nonstop":null,"max_results":null,"currency":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
+
+Q: "show prices in euros"
+{"intent":"flight_refine","entities":{"currency":"EUR","airline":null,"sort":null,"nonstop":null,"max_results":null,"team":null,"city":null,"date":null,"departure_city":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
 """
 
 SCOUT_PROMPT = """\
