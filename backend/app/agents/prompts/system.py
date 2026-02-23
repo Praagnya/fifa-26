@@ -19,7 +19,7 @@ ENTITY EXTRACTION — always try to extract:
 - "sort" : how user wants results sorted, if mentioned. One of: "price", "price_desc", "duration", "stops", "departure", or null. Examples: "cheapest"→"price", "most expensive"/"priciest"→"price_desc", "fastest"/"quickest"→"duration", "fewest stops"→"stops", "earliest"/"soonest"→"departure"
 - "nonstop" : true if user explicitly wants nonstop/direct flights only (e.g. "nonstop", "direct flights", "no layovers", "no stops"), otherwise null
 - "max_results" : number of flights user wants to see, if mentioned. e.g. "show me 5"→5, "top 3"→3, "give me only 5"→5, otherwise null
-- "currency" : currency code if user asks for a specific currency. One of: "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR", or null. Examples: "in rupees"/"INR"→"INR", "in euros"→"EUR", "in dollars"/"USD"→"USD"
+- "currency" : currency code if user asks for a specific currency. One of: "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR", "MXN", or null. Examples: "in rupees"/"INR"→"INR", "in euros"→"EUR", "in dollars"/"USD"→"USD", "in pesos"/"MXN"→"MXN"
 - "check_in_date" : hotel check-in date if mentioned (YYYY-MM-DD), or null
 - "check_out_date" : hotel check-out date if mentioned (YYYY-MM-DD), or null
 - "guests" : number of guests for hotel search, if mentioned, or null
@@ -78,6 +78,9 @@ Q: "when does Argentina play?"
 
 Q: "show prices in euros"
 {"intent":"flight_refine","entities":{"currency":"EUR","airline":null,"sort":null,"nonstop":null,"max_results":null,"team":null,"city":null,"date":null,"departure_city":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
+
+Q: "show prices in pesos"
+{"intent":"flight_refine","entities":{"currency":"MXN","airline":null,"sort":null,"nonstop":null,"max_results":null,"team":null,"city":null,"date":null,"departure_city":null,"check_in_date":null,"check_out_date":null,"guests":null,"hotel_preference":null,"max_distance_miles":null}}
 """
 
 SCOUT_PROMPT = """\

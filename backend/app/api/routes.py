@@ -164,7 +164,7 @@ async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user))
             "session_id": sid,
             "error": "",
             "user_timezone": request.timezone or "UTC",
-            "currency": request.currency or "USD",
+            "currency": request.currency or prev.get("currency", "USD"),
             "nonstop": prev.get("nonstop", False),
             "max_results": prev.get("max_results", 10),
         })
@@ -183,6 +183,7 @@ async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user))
             "entities": result.get("entities") or prev.get("entities", {}),
             "nonstop": result.get("nonstop", prev.get("nonstop", False)),
             "max_results": result.get("max_results", prev.get("max_results", 10)),
+            "currency": result.get("currency") or prev.get("currency", "USD"),
         }
 
         # Build response with structured flight data when available
@@ -221,7 +222,7 @@ async def chat(request: ChatRequest, user: AuthUser = Depends(get_current_user))
         if sort_pref and sort_pref in ("price", "price_desc", "duration", "stops", "departure"):
             response["sort"] = sort_pref
         currency_pref = entities.get("currency")
-        if currency_pref and currency_pref in ("USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR"):
+        if currency_pref and currency_pref in ("USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR", "MXN"):
             response["currency"] = currency_pref
 
         # Build refinement object for flight_refine intent (no API call needed)
