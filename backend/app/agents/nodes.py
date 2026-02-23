@@ -213,8 +213,6 @@ def concierge(state: AgentState) -> dict:
     Search for hotels using Amadeus API, then summarize with LLM.
     """
     match_data = state.get("match_data", [])
-    print(f"DEBUG CONCIERGE: match_data={match_data}")
-    # DEBUG: Ensure match_data is loaded
     entities = state.get("entities", {})
 
     # Determine match city and date
