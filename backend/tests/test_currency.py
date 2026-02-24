@@ -109,6 +109,103 @@ def test_resolve_iata_preseed(city, expected_iata):
 
 
 # ---------------------------------------------------------------------------
+# 2b. Short abbreviations bypass Amadeus keyword search (go to geocoding)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("abbrev", ["la", "sf", "nyc", "dc", "ny"])
+def test_short_abbrev_skips_amadeus_keyword_search(abbrev):
+    """
+    Short inputs (≤3 chars) must NOT call the Amadeus keyword API
+    (which would return ambiguous results like airline codes), and must
+    instead go straight to the geocoding fallback.
+    """
+    # Clear any cached entry for the abbreviation
+    fs._iata_cache.pop(abbrev, None)
+
+    mock_client = MagicMock()
+    # Geocoding fallback: Amadeus CITY geocode returns nothing → LLM geocode path
+    mock_client.reference_data.locations.get.return_value.data = []
+    # Nearest airport returns LAX for any coords
+    mock_client.reference_data.locations.airports.get.return_value.data = [
+        {"iataCode": "LAX"}
+    ]
+
+    with patch.object(fs, "_get_client", return_value=mock_client), \
+         patch.object(fs, "_geocode_via_llm", return_value=(34.05, -118.24)):
+        fs.resolve_iata(abbrev)
+
+    # The keyword search (AIRPORT,CITY subType) must never have been called
+    for call in mock_client.reference_data.locations.get.call_args_list:
+        kwargs = call.kwargs if call.kwargs else (call.args[1] if len(call.args) > 1 else {})
+        assert kwargs.get("subType") != "AIRPORT,CITY", (
+            f"resolve_iata('{abbrev}') called the Amadeus keyword search — "
+            "short abbreviations should skip it and use geocoding instead"
+        )
+
+
+def test_short_abbrev_resolves_via_geocoding():
+    """
+    'la' must resolve to LAX through the geocoding path, not a wrong
+    airport returned by an Amadeus keyword match on the ambiguous string.
+    """
+    fs._iata_cache.pop("la", None)
+
+    mock_client = MagicMock()
+    mock_client.reference_data.locations.get.return_value.data = []
+    mock_client.reference_data.locations.airports.get.return_value.data = [
+        {"iataCode": "LAX"}
+    ]
+
+    with patch.object(fs, "_get_client", return_value=mock_client), \
+         patch.object(fs, "_geocode_via_llm", return_value=(34.05, -118.24)):
+        code = fs.resolve_iata("la")
+
+    assert code == "LAX"
+
+
+# ---------------------------------------------------------------------------
+# 2c. LLM direct IATA fallback when Amadeus keyword search fails
+# ---------------------------------------------------------------------------
+
+def test_llm_iata_fallback_when_amadeus_fails():
+    """
+    When the Amadeus keyword search returns nothing (e.g. test-env gap),
+    resolve_iata must fall back to _resolve_iata_via_llm to get the code.
+    """
+    fs._iata_cache.pop("phoenix", None)
+
+    mock_client = MagicMock()
+    # Amadeus returns no results for any call
+    mock_client.reference_data.locations.get.return_value.data = []
+    mock_client.reference_data.locations.airports.get.return_value.data = []
+
+    with patch.object(fs, "_get_client", return_value=mock_client), \
+         patch.object(fs, "_geocode_via_llm", return_value=(33.44, -112.07)), \
+         patch.object(fs, "_resolve_iata_via_llm", return_value="PHX") as mock_llm_iata:
+        code = fs.resolve_iata("phoenix")
+
+    # _resolve_iata_via_llm should have been called as the last resort
+    mock_llm_iata.assert_called_once_with("phoenix")
+    assert code == "PHX"
+
+
+def test_llm_iata_fallback_caches_result():
+    """Result from _resolve_iata_via_llm should be stored in _iata_cache."""
+    fs._iata_cache.pop("phoenix", None)
+
+    mock_client = MagicMock()
+    mock_client.reference_data.locations.get.return_value.data = []
+    mock_client.reference_data.locations.airports.get.return_value.data = []
+
+    with patch.object(fs, "_get_client", return_value=mock_client), \
+         patch.object(fs, "_geocode_via_llm", return_value=(33.44, -112.07)), \
+         patch.object(fs, "_resolve_iata_via_llm", return_value="PHX"):
+        fs.resolve_iata("phoenix")
+
+    assert fs._iata_cache.get("phoenix") == "PHX"
+
+
+# ---------------------------------------------------------------------------
 # 3. Currency parameter is forwarded to the Amadeus API call
 # ---------------------------------------------------------------------------
 

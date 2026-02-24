@@ -116,10 +116,41 @@ def _geocode_via_llm(city: str) -> tuple[float, float] | None:
         return None
 
 
+def _resolve_iata_via_llm(city: str) -> str | None:
+    """
+    Ask OpenAI to return the IATA code for the main airport serving a city.
+    Used as a reliable fallback when Amadeus can't resolve the city name.
+    """
+    try:
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Return ONLY the 3-letter IATA airport code for the main "
+                        "international airport serving the given city or abbreviation. "
+                        "No explanation, no punctuation — just the 3-letter code."
+                    ),
+                },
+                {"role": "user", "content": city},
+            ],
+            temperature=0,
+        )
+        code = resp.choices[0].message.content.strip().upper()
+        if len(code) == 3 and code.isalpha():
+            return code
+    except Exception:
+        pass
+    return None
+
+
 def _find_nearby_airport(city: str) -> str | None:
     """
     When a city has no airport in Amadeus, geocode it (try Amadeus first,
     then LLM fallback), then find the nearest airport by coordinates.
+    Falls back to direct LLM IATA resolution if the coordinate path fails.
     """
     try:
         client = _get_client()
@@ -144,20 +175,19 @@ def _find_nearby_airport(city: str) -> str | None:
             if coords:
                 lat, lon = coords
 
-        if lat is None or lon is None:
-            return None
-
-        # Find nearest airports by coordinates
-        airport_resp = client.reference_data.locations.airports.get(
-            latitude=lat,
-            longitude=lon,
-        )
-        if airport_resp.data:
-            return airport_resp.data[0]["iataCode"]
+        if lat is not None and lon is not None:
+            # Find nearest airports by coordinates
+            airport_resp = client.reference_data.locations.airports.get(
+                latitude=lat,
+                longitude=lon,
+            )
+            if airport_resp.data:
+                return airport_resp.data[0]["iataCode"]
     except (ResponseError, Exception):
         pass
 
-    return None
+    # Last resort: ask the LLM for the IATA code directly
+    return _resolve_iata_via_llm(city)
 
 
 
@@ -363,8 +393,9 @@ def _get_airport_details(iata_code: str) -> dict:
 def resolve_iata(city: str) -> str | None:
     """
     Resolve a city name to an IATA airport code dynamically.
-    1. Direct airport/city keyword search
-    2. If no airport found, geocode the city and find the nearest airport
+    1. Pre-seeded cache
+    2. Amadeus keyword search (skipped for ≤3-char inputs — too ambiguous)
+    3. Geocode the city (Amadeus then LLM) and find the nearest airport
     """
     key = city.lower().strip()
     if not key:
@@ -373,37 +404,41 @@ def resolve_iata(city: str) -> str | None:
     if key in _iata_cache:
         return _iata_cache[key]
 
-    try:
-        client = _get_client()
-        response = client.reference_data.locations.get(
-            keyword=key,
-            subType="AIRPORT,CITY",
-        )
-        if response.data:
-            # Prefer AIRPORT type over CITY
-            for loc in response.data:
-                if loc.get("subType") == "AIRPORT":
-                    code = loc["iataCode"]
+    # Short inputs (≤3 chars) are almost always abbreviations like "LA", "SF", "NYC".
+    # The Amadeus keyword search is unreliable for these (e.g. "LA" matches LATAM's
+    # airline code before Los Angeles), so skip straight to geocoding.
+    if len(key) > 3:
+        try:
+            client = _get_client()
+            response = client.reference_data.locations.get(
+                keyword=key,
+                subType="AIRPORT,CITY",
+            )
+            if response.data:
+                # Prefer AIRPORT type over CITY
+                for loc in response.data:
+                    if loc.get("subType") == "AIRPORT":
+                        code = loc["iataCode"]
+                        _iata_cache[key] = code
+                        # Also populate details cache while we're here
+                        offset = loc.get("timeZoneOffset", "")
+                        country = loc.get("address", {}).get("countryCode", "")
+                        _airport_details_cache[code] = {
+                            "name": loc.get("name", code),
+                            "detailedName": loc.get("detailedName", code),
+                            "offset": offset,
+                            "tz": _get_timezone_label(offset, country),
+                            "city": loc.get("address", {}).get("cityName", ""),
+                        }
+                        return code
+
+                # First result is a CITY — use its code if it has one
+                code = response.data[0].get("iataCode")
+                if code:
                     _iata_cache[key] = code
-                    # Also populate details cache while we're here
-                    offset = loc.get("timeZoneOffset", "")
-                    country = loc.get("address", {}).get("countryCode", "")
-                    _airport_details_cache[code] = {
-                        "name": loc.get("name", code),
-                        "detailedName": loc.get("detailedName", code),
-                        "offset": offset,
-                        "tz": _get_timezone_label(offset, country),
-                        "city": loc.get("address", {}).get("cityName", ""),
-                    }
                     return code
-            
-            # First result is a CITY — use its code if it has one
-            code = response.data[0].get("iataCode")
-            if code:
-                _iata_cache[key] = code
-                return code
-    except (ResponseError, Exception):
-        pass
+        except (ResponseError, Exception):
+            pass
 
     # Fallback: geocode the city, then find the nearest airport
     nearby = _find_nearby_airport(key)
