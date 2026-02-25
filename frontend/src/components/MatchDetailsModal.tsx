@@ -33,7 +33,7 @@ export default function MatchDetailsModal({ match, onClose }: Props) {
     const fetchH2H = async () => {
       try {
         const res = await fetch(
-          `http://localhost:8000/api/v1/h2h/${encodeURIComponent(match.home_team)}/${encodeURIComponent(match.away_team)}`
+          `/api/v1/h2h/${encodeURIComponent(match.home_team)}/${encodeURIComponent(match.away_team)}`
         );
         if (res.ok) {
           const data = await res.json();
