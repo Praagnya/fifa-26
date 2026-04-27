@@ -5,6 +5,35 @@ from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
+# FIFA 2026 host city → (UTC offset in summer, label)
+_VENUE_TIMEZONE: dict[str, tuple[str, str]] = {
+    "New York":        ("-04:00", "EDT"),
+    "New Jersey":      ("-04:00", "EDT"),
+    "Los Angeles":     ("-07:00", "PDT"),
+    "Dallas":          ("-05:00", "CDT"),
+    "San Francisco":   ("-07:00", "PDT"),
+    "Miami":           ("-04:00", "EDT"),
+    "Seattle":         ("-07:00", "PDT"),
+    "Boston":          ("-04:00", "EDT"),
+    "Kansas City":     ("-05:00", "CDT"),
+    "Atlanta":         ("-04:00", "EDT"),
+    "Houston":         ("-05:00", "CDT"),
+    "Philadelphia":    ("-04:00", "EDT"),
+    "Toronto":         ("-04:00", "EDT"),
+    "Vancouver":       ("-07:00", "PDT"),
+    "Mexico City":     ("-05:00", "CDT"),
+    "Guadalajara":     ("-05:00", "CDT"),
+    "Monterrey":       ("-05:00", "CDT"),
+}
+
+
+def _venue_timezone_str(city: str) -> str:
+    """Return a human-readable timezone string for a FIFA 2026 host city."""
+    for key, (offset, label) in _VENUE_TIMEZONE.items():
+        if key.lower() in city.lower():
+            return f"{label} (UTC{offset}, {city})"
+    return f"local time in {city} (exact offset unknown)"
+
 from backend.app.agents.state import AgentState
 from backend.app.agents.prompts.system import (
     ORCHESTRATOR_PROMPT,
@@ -197,6 +226,7 @@ def scout(state: AgentState) -> dict:
         flight_results=json.dumps(flight_results, indent=2, default=str),
         match_data=json.dumps(match_data[:3], indent=2, default=str),
         user_timezone=state.get("user_timezone", "UTC"),
+        venue_timezone=_venue_timezone_str(match_city),
     )
     summary = _call_llm(scout_prompt, state["query"])
 

@@ -96,6 +96,9 @@ Your task: summarize the flight search results in a clear, helpful way.
 USER TIMEZONE: {user_timezone}
 (Flight times below are likely in local airport time. Please convert to user's timezone if you are confident in the offset, otherwise explicitly state that times are local.)
 
+VENUE TIMEZONE: {venue_timezone}
+(The match kickoff_utc in MATCH DATA is in UTC. When showing local kickoff time, convert it using the VENUE TIMEZONE above and label it with the venue city name — do NOT use any other city name.)
+
 FLIGHT RESULTS:
 {flight_results}
 
@@ -103,7 +106,7 @@ MATCH DATA:
 {match_data}
 
 Present the information clearly:
-1. Briefly confirm the match details (teams, date, city, stadium)
+1. Briefly confirm the match details (teams, date, city, stadium, and local kickoff time using VENUE TIMEZONE)
 2. List the top flight options with price, airline, duration, and stops
 3. If there are errors or no flights, explain and suggest alternatives
 
